@@ -1,0 +1,13 @@
+{
+  "name": "pixel-rpg",
+  "version": "1.0.0",
+  "description": "像素复古风砍怪爆装备 PvP 网页游戏",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.16.0"
+  }
+}

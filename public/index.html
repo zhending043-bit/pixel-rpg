@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素勇者 - Pixel RPG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+      <div class="login-box">
+        <h1 class="game-title">像素勇者</h1>
+        <p class="sub-title">砍怪 · 爆装备 · PvP</p>
+        <input type="text" id="player-name-input" placeholder="输入你的名字" maxlength="10">
+        <button id="start-game-btn" class="pixel-btn">开始冒险</button>
+      </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden">
+      <!-- Header / Stats -->
+      <div id="stats-bar">
+        <div class="stats-row">
+          <span id="stat-name">勇者</span>
+          <span id="stat-level">Lv.1</span>
+          <span id="stat-lives">❤❤❤</span>
+          <span id="stat-hp">HP: 100/100</span>
+        </div>
+        <div class="stats-row">
+          <span id="stat-atk">⚔ ATK: 10</span>
+          <span id="stat-def">🛡 DEF: 5</span>
+          <span id="stat-gold">💰 0</span>
+        <div class="bar-container">
+          <div class="bar-label">EXP</div>
+          <div class="bar-bg">
+            <div id="exp-bar" class="bar-fill exp-fill" style="width:0%"></div>
+          </div>
+          <span id="stat-exp-text" class="bar-text">0/50</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div id="tab-bar">
+        <button class="tab-btn active" data-tab="combat">⚔ 战斗</button>
+        <button class="tab-btn" data-tab="inventory">🎒 背包</button>
+        <button class="tab-btn" data-tab="shop">🏪 商店</button>
+        <button class="tab-btn" data-tab="pvp">🌐 联机</button>
+      </div>
+
+      <!-- Tab Content: Combat -->
+      <div id="tab-combat" class="tab-content active">
+        <div id="zone-selector"></div>
+        <div id="monster-list"></div>
+        <div id="combat-log"></div>
+      </div>
+
+      <!-- Tab Content: Inventory -->
+      <div id="tab-inventory" class="tab-content">
+        <div id="equipped-slots">
+          <h3>已装备</h3>
+          <div id="equipped-weapon" class="equip-slot" data-slot="weapon">武器 - 空</div>
+          <div id="equipped-armor" class="equip-slot" data-slot="armor">防具 - 空</div>
+          <div id="equipped-accessory" class="equip-slot" data-slot="accessory">饰品 - 空</div>
+        </div>
+        <h3>背包</h3>
+        <div id="inventory-list"></div>
+      </div>
+
+      <!-- Tab Content: Shop -->
+      <div id="tab-shop" class="tab-content">
+        <h3>🏪 装备商店 — 红装</h3>
+        <div id="shop-notice" style="font-size:7px;color:#888;margin-bottom:8px">只有红装才能挑战魔王！</div>
+        <div id="shop-list"></div>
+      </div>
+
+      <!-- Tab Content: PvP -->
+      <div id="tab-pvp" class="tab-content">
+        <div id="online-players">
+          <h3>在线玩家</h3>
+          <div id="player-list"></div>
+        </div>
+        <div id="pvp-log"></div>
+      </div>
+
+      <!-- Battle Overlay Modal -->
+      <div id="battle-overlay" class="hidden">
+        <div id="battle-window">
+<div id="battle-header">
+            <div id="battle-player-info">
+              <img id="battle-p-sprite" class="battle-sprite" src="sprites/hero.png" alt="hero">
+              <div id="battle-p-name">勇者</div>
+              <div class="mini-bar-bg"><div id="battle-p-hp" class="mini-bar-fill hp-fill"></div></div>
+            </div>
+            <div id="battle-vs">VS</div>
+            <div id="battle-enemy-info">
+              <img id="battle-e-sprite" class="battle-sprite" src="" alt="monster">
+              <div id="battle-e-name">怪物</div>
+              <div class="mini-bar-bg"><div id="battle-e-hp" class="mini-bar-fill hp-fill"></div></div>
+            </div>
+          </div>
+          <div id="combat-info-panel">
+            <div id="combat-stats">
+              <span id="combat-round">⚔ 回合 0</span>
+              <span id="combat-total-dmg">⚡ 伤害 0</span>
+              <span id="combat-crits">💥 暴击 0</span>
+            </div>
+            <div id="combat-status">
+              <div class="combat-side">
+                <span id="combat-p-info">❤ 0/0</span>
+                <span id="combat-p-atk">⚔ 0</span>
+                <span id="combat-p-def">🛡 0</span>
+              </div>
+              <div class="combat-side">
+                <span id="combat-e-info">❤ 0/0</span>
+                <span id="combat-e-atk">⚔ 0</span>
+                <span id="combat-e-def">🛡 0</span>
+              </div>
+            </div>
+          </div>
+          <div id="battle-scene" data-zone="0">
+            <div id="reward-overlay" class="hidden">
+              <div id="reward-equip"></div>
+              <div id="reward-exp"></div>
+              <div id="reward-gold"></div>
+            </div>
+          </div>
+          <div id="battle-actions">
+            <button id="battle-attack-btn" class="pixel-btn">⚔ 攻击</button>
+            <button id="battle-flee-btn" class="pixel-btn">🏃 逃跑</button>
+          </div>
+          <div id="battle-result" class="hidden">
+            <p id="battle-result-text"></p>
+            <button id="battle-close-btn" class="pixel-btn">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/player.js"></script>
+  <script src="js/equipment.js"></script>
+  <script src="js/monster.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/bots.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
