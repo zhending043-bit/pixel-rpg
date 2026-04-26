@@ -51,7 +51,10 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "WebFetch(domain:pixel-rpg.onrender.com)"
     ]
   }
 }
