@@ -219,6 +219,14 @@ body::before {
   75% { color: #ff1744; transform: scale(1.2); }
 }
 
+/* ========== Skill CD ========== */
+.skill-cd {
+  font-size: 7px;
+  margin-left: 6px;
+}
+.skill-cd.ready { color: #4caf50; }
+.skill-cd.cd { color: #888; }
+
 /* ========== EXP Bar ========== */
 .bar-container {
   display: flex;
@@ -641,6 +649,8 @@ body::before {
 }
 
 #battle-p-name { color: #4fc3f7; }
+#battle-p-cd { margin-top: 6px; font-size: 8px; text-align: center; line-height: 1.4; }
+#battle-e-cd { margin-top: 6px; height: 22px; }
 #battle-e-name { color: #ef5350; }
 
 #battle-vs {
@@ -999,6 +1009,40 @@ body::before {
 
 .sprite-flash-crit {
   animation: flashAttack 0.4s ease-out;
+}
+
+/* ========== Lifesteal Animation ========== */
+@keyframes lifestealPulse {
+  0%   { filter: brightness(1) drop-shadow(0 0 0 #4caf50); }
+  50%  { filter: brightness(1.6) drop-shadow(0 0 12px #4caf50); }
+  100% { filter: brightness(1) drop-shadow(0 0 0 #4caf50); }
+}
+
+.sprite-lifesteal {
+  animation: lifestealPulse 0.5s ease-out;
+}
+
+/* ========== Battle Log Floating Text ========== */
+.floating-text {
+  position: absolute;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #fff;
+  font-weight: bold;
+  z-index: 30;
+  pointer-events: none;
+  white-space: nowrap;
+  text-shadow:
+    2px 2px 0 rgba(0,0,0,0.95),
+    -1px -1px 0 rgba(0,0,0,0.8),
+    0 0 8px rgba(0,0,0,0.5);
+  animation: logFloat 2.5s ease-out forwards;
+}
+
+@keyframes logFloat {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 1; transform: translateX(-50%) translateY(-30px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-60px); }
 }
 
 /* ========== Scrollbar ========== */

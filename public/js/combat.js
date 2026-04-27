@@ -38,6 +38,10 @@ class PvECombat {
   playerAttack() {
     if (this.finished) return;
 
+    // Decrement cooldowns
+    this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
+    this.player.comboCd = Math.max(0, this.player.comboCd - 1);
+
     const crit = isCritical(this.player.level);
     let damage = calcDamage(this.player.atk, this.monster.def);
     if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
@@ -48,7 +52,29 @@ class PvECombat {
     if (crit) this.stats.playerCrits++;
     this.lastHit = { damage, critical: crit, isPlayer: true };
     const critText = crit ? '💥 暴击! ' : '';
-    this.onLog(`${critText}你对 ${this.monster.name} 造成了 ${damage} 点伤害`);
+    this.onLog(`${critText}造成伤害${damage}`);
+
+    // Lifesteal
+    let lifestealHeal = 0;
+    if (this.player.passiveLifesteal && this.player.lifestealCd === 0 && damage > 0) {
+      lifestealHeal = Math.max(1, Math.floor(damage * 0.15));
+      this.player.hp = Math.min(this.player.effectiveMaxHp, this.player.hp + lifestealHeal);
+      this.player.lifestealCd = this.player.lifestealCdMax;
+      this.onLog(`🩸 吸血恢复了 ${lifestealHeal} 点生命`);
+    }
+    this.lastHit.lifesteal = lifestealHeal > 0;
+
+    // Combo — second hit at 60% damage
+    let comboDamage = 0;
+    if (this.player.passiveCombo && this.player.comboCd === 0 && this.monster.hp > 0) {
+      comboDamage = Math.floor(damage * 0.6);
+      this.monster.hp -= comboDamage;
+      this.stats.playerTotalDmg += comboDamage;
+      this.player.comboCd = this.player.comboCdMax;
+      this.onLog(`💫 连击！额外造成了 ${comboDamage} 点伤害`);
+    }
+
+    this.lastHit.combo = comboDamage > 0;
 
     if (this.monster.hp <= 0) {
       this.monster.hp = 0;
@@ -103,7 +129,7 @@ class PvECombat {
     this.player.hp -= damage;
     this.stats.monsterTotalDmg += damage;
     this.lastHit = { damage, critical: false, isPlayer: false };
-    this.onLog(`${this.monster.name} 对你造成了 ${damage} 点伤害`);
+    this.onLog(`受伤-${damage}`);
 
     if (this.player.hp <= 0) {
       this.player.hp = 0;
@@ -142,29 +168,59 @@ class PvPCombat {
   myAttack() {
     if (this.finished || !this.myTurn) return null;
 
+    // Decrement cooldowns
+    this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
+    this.player.comboCd = Math.max(0, this.player.comboCd - 1);
+
     const crit = isCritical(this.player.level);
     let damage = calcDamage(this.player.atk, this.opponent.def);
     if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
 
     this.opponent.hp -= damage;
     const critText = crit ? '💥 暴击! ' : '';
-    this.onLog(`${critText}你对 ${this.opponent.name} 造成了 ${damage} 点伤害`);
+    this.onLog(`${critText}造成伤害${damage}`);
+
+    // Lifesteal
+    if (this.player.passiveLifesteal && this.player.lifestealCd === 0 && damage > 0) {
+      const heal = Math.max(1, Math.floor(damage * 0.15));
+      this.player.hp = Math.min(this.player.effectiveMaxHp, this.player.hp + heal);
+      this.player.lifestealCd = this.player.lifestealCdMax;
+      this.onLog(`🩸 吸血恢复了 ${heal} 点生命`);
+    }
+
+    // Combo
+    let comboDamage = 0;
+    let comboCritical = false;
+    if (this.player.passiveCombo && this.player.comboCd === 0 && this.opponent.hp > 0) {
+      comboDamage = calcDamage(Math.floor(this.player.atk * 0.6), this.opponent.def);
+      comboCritical = isCritical(this.player.level);
+      if (comboCritical) comboDamage = Math.floor(comboDamage * CRIT_MULTIPLIER);
+      this.opponent.hp -= comboDamage;
+      this.player.comboCd = this.player.comboCdMax;
+      const comboCritText = comboCritical ? '💥' : '';
+      this.onLog(`💫 连击！${comboCritText}额外造成了 ${comboDamage} 点伤害`);
+    }
 
     if (this.opponent.hp <= 0) {
       this.opponent.hp = 0;
       this.finished = true;
       this.onLog(`🏆 你击败了 ${this.opponent.name}！`);
-      return { won: true, damage, critical: crit };
+      return { won: true, damage, critical: crit, comboDamage, comboCritical };
     }
 
     this.myTurn = false;
-    return { won: null, damage, critical: crit };
+    return { won: null, damage, critical: crit, comboDamage, comboCritical };
   }
 
-  opponentAttack(damage, critical) {
+  opponentAttack(damage, critical, comboDamage = 0) {
     this.player.hp -= damage;
     const critText = critical ? '💥 暴击! ' : '';
-    this.onLog(`${critText}${this.opponent.name} 对你造成了 ${damage} 点伤害`);
+    this.onLog(`受伤-${damage}${critText}`);
+
+    if (comboDamage > 0) {
+      this.player.hp -= comboDamage;
+      this.onLog(`💫 连击！额外造成了 ${comboDamage} 点伤害`);
+    }
 
     if (this.player.hp <= 0) {
       this.player.hp = 0;

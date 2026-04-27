@@ -211,6 +211,12 @@ function showStatsModal() {
       <span class="stat-label">PvP 战绩</span>
       <span class="stat-value">${p.pvpWins}胜 ${p.pvpLosses}负</span>
     </div>
+    <div class="stat-row">
+      <span class="stat-label">被动技能</span>
+      <span class="stat-value" style="font-size:7px;color:#4caf50">
+        ${p.passiveLifesteal ? '🩸吸血 ' : ''}${p.passiveCombo ? '💫连击' : ''}
+      </span>
+    </div>
   `;
 
   modal.classList.remove('hidden');
@@ -301,6 +307,11 @@ function showHelpModal() {
   <li>5 个人机 AI，等级 5/10/15/20/25</li>
   <li>击败后可选择放走或击杀</li>
   <li>击杀全部 5 人机解锁成就</li>
+</ul>
+<h2>被动技能</h2>
+<ul>
+  <li><b>🩸 吸血</b>：每次攻击恢复造成伤害 15% 的生命值</li>
+  <li><b>💫 连击</b>：普通攻击有 18% 概率触发第二次攻击，造成 60% 伤害</li>
 </ul>
 <h2>其他</h2>
 <ul>
@@ -412,6 +423,8 @@ function renderMonsters() {
 
 // ========= PvE Combat =========
 function startPvECombat(monsterData) {
+  currentPlayer.lifestealCd = 0;
+  currentPlayer.comboCd = 0;
   if (currentPlayer.hp <= 0 || currentPlayer.lives <= 0) {
     addBattleLog('💀 你已经没有命了！游戏结束...');
     return;
@@ -445,6 +458,15 @@ async function runAutoCombat() {
       soundPlayerAttack();
     }
     flashSprite('battle-p-sprite', currentCombat.lastHit.critical);
+
+    // Combo — delayed second flash + sound
+    if (currentCombat.lastHit.combo) {
+      setTimeout(() => {
+        soundPlayerAttack();
+        flashSprite('battle-e-sprite', false);
+      }, 200);
+    }
+
     updateBattleUI();
     updateCombatPanel();
 
@@ -453,7 +475,7 @@ async function runAutoCombat() {
       return;
     }
 
-    await delay(350);
+    await delay(750);
 
     if (!currentCombat || currentCombat.finished) break;
 
@@ -473,7 +495,7 @@ async function runAutoCombat() {
       return;
     }
 
-    await delay(350);
+    await delay(750);
   }
 }
 
@@ -536,6 +558,30 @@ function addBattleLog(msg) {
   entry.textContent = msg;
   logDiv.appendChild(entry);
   logDiv.scrollTop = logDiv.scrollHeight;
+
+  // Also show as floating text in battle-scene when battle overlay is open
+  const battleOverlay = document.getElementById('battle-overlay');
+  if (battleOverlay && !battleOverlay.classList.contains('hidden')) {
+    const scene = document.getElementById('battle-scene');
+    if (scene) {
+      // Replace existing floating text (one at a time)
+      if (scene._floatEl) scene._floatEl.remove();
+      const el = document.createElement('div');
+      el.className = 'floating-text';
+      el.textContent = msg;
+      el.style.left = '50%';
+      el.style.top = '45%';
+      el.style.transform = 'translateX(-50%)';
+      scene.appendChild(el);
+      scene._floatEl = el;
+      setTimeout(() => {
+        if (scene._floatEl === el) {
+          el.remove();
+          scene._floatEl = null;
+        }
+      }, 2500);
+    }
+  }
 }
 
 function openBattleOverlay(enemyName) {
@@ -590,7 +636,6 @@ function updateCombatPanel() {
   document.getElementById('combat-e-def').textContent = `🛡 ${m.def}`;
 }
 
-// ========== Battle Effects ==========
 function flashSprite(spriteId, critical) {
   const el = document.getElementById(spriteId);
   if (!el) return;
@@ -600,6 +645,17 @@ function flashSprite(spriteId, critical) {
   setTimeout(() => {
     el.className = 'battle-sprite';
   }, critical ? 500 : 300);
+}
+
+function updateBattleSkillCd() {
+  const el = document.getElementById('battle-p-cd');
+  if (!el) return;
+  const p = currentPlayer;
+  const lsTxt = p.lifestealCd === 0 ? '已就绪' : `将在${p.lifestealCd}回合后发动`;
+  const coTxt = p.comboCd === 0 ? '已就绪' : `将在${p.comboCd}回合后发动`;
+  el.innerHTML =
+    `<div class="skill-cd ${p.lifestealCd === 0 ? 'ready' : 'cd'}">吸血 🩸 ${lsTxt}</div>` +
+    `<div class="skill-cd ${p.comboCd === 0 ? 'ready' : 'cd'}">连击 💫 ${coTxt}</div>`;
 }
 
 function updateBattleUI() {
@@ -613,6 +669,7 @@ function updateBattleUI() {
     `${currentCombat.monster.name} Lv.${currentCombat.monster.level}`;
   const eHpPct = currentCombat.monster.hp / currentCombat.monster.maxHp * 100;
   document.getElementById('battle-e-hp').style.width = `${Math.max(0, eHpPct)}%`;
+  updateBattleSkillCd();
 }
 
 function onPvEEnd(result) {
@@ -974,6 +1031,8 @@ function checkBotAchievement() {
 
 // ========= Bot Combat =========
 function startBotCombat(bot) {
+  currentPlayer.lifestealCd = 0;
+  currentPlayer.comboCd = 0;
   if (currentPlayer.hp <= 0 || currentPlayer.lives <= 0) {
     addBattleLog('💀 你已经没有命了！');
     return;
@@ -1197,6 +1256,8 @@ function showPvPChallenge(from) {
 }
 
 function openPvPOverlay(opponentData, isMyTurn) {
+  currentPlayer.lifestealCd = 0;
+  currentPlayer.comboCd = 0;
   // Heal both players to full for fair PvP
   currentPlayer.hp = currentPlayer.effectiveMaxHp;
   const oppMaxHp = opponentData.effectiveMaxHp || opponentData.maxHp || opponentData.hp;
@@ -1256,6 +1317,7 @@ function updatePvPBattleUI() {
     `${currentPvpCombat.opponent.name} Lv.${currentPvpCombat.opponent.level}`;
   const eHpPct = currentPvpCombat.opponent.hp / currentPvpCombat.opponent.maxHp * 100;
   document.getElementById('battle-e-hp').style.width = `${Math.max(0, eHpPct)}%`;
+  updateBattleSkillCd();
 }
 
 function autoPvPAttack() {
@@ -1280,12 +1342,24 @@ function pvpBattleAttack() {
     } else {
       soundPlayerAttack();
     }
+
+    // Combo — delayed second flash + sound
+    if (result.comboDamage > 0) {
+      setTimeout(() => {
+        if (result.comboCritical) soundCriticalHit();
+        else soundPlayerAttack();
+        flashSprite('battle-e-sprite', result.comboCritical);
+      }, 200);
+      const comboCritText = result.comboCritical ? ' 💥暴击！' : '';
+      addBattleLog(`💫 连击！额外造成了 ${result.comboDamage} 点伤害${comboCritText}`);
+    }
+
     // Show attack result in battle log
     const critText = result.critical ? ' 💥暴击！' : '';
-    addBattleLog(`你对 ${currentPvpCombat.opponent.name} 造成了 ${result.damage} 点伤害${critText}`);
+    addBattleLog(`${critText}造成伤害${result.damage}`);
 
-    // Send attack to opponent
-    network.sendPvPAttack(currentPvpCombat.opponent.name, result.damage, result.critical);
+    // Send attack to opponent (with combo data)
+    network.sendPvPAttack(currentPvpCombat.opponent.name, result.damage, result.critical, result.comboDamage || 0, result.comboCritical || false);
 
     if (result.won) {
       currentPlayer.pvpWins++;

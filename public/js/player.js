@@ -23,6 +23,12 @@ class Player {
     this.maxLives = 5; // base, can be increased to 10 via shop
     this.pvpWins = 0;
     this.pvpLosses = 0;
+    this.passiveLifesteal = true;
+    this.passiveCombo = true;
+    this.lifestealCd = 0;
+    this.comboCd = 0;
+    this.lifestealCdMax = 3;
+    this.comboCdMax = 4;
   }
 
   get maxExp() {
@@ -158,6 +164,12 @@ class Player {
       maxLives: this.maxLives,
       pvpWins: this.pvpWins,
       pvpLosses: this.pvpLosses,
+      passiveLifesteal: this.passiveLifesteal,
+      passiveCombo: this.passiveCombo,
+      lifestealCd: this.lifestealCd,
+      comboCd: this.comboCd,
+      lifestealCdMax: this.lifestealCdMax,
+      comboCdMax: this.comboCdMax,
     };
   }
 
@@ -186,6 +198,12 @@ class Player {
     p.maxLives = data.maxLives !== undefined ? data.maxLives : 5;
     p.pvpWins = data.pvpWins || 0;
     p.pvpLosses = data.pvpLosses || 0;
+    p.passiveLifesteal = data.passiveLifesteal !== undefined ? data.passiveLifesteal : true;
+    p.passiveCombo = data.passiveCombo !== undefined ? data.passiveCombo : true;
+    p.lifestealCd = data.lifestealCd || 0;
+    p.comboCd = data.comboCd || 0;
+    p.lifestealCdMax = data.lifestealCdMax || 3;
+    p.comboCdMax = data.comboCdMax || 4;
     return p;
   }
 }

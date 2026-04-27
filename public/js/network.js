@@ -90,13 +90,15 @@ class Network {
     addPvPLog(`❌ 已拒绝 ${from} 的挑战`);
   }
 
-  sendPvPAttack(target, damage, critical) {
+  sendPvPAttack(target, damage, critical, comboDamage = 0, comboCritical = false) {
     if (!this.connected) return;
     this.ws.send(JSON.stringify({
       type: 'pvp_attack',
       target,
       damage,
       critical,
+      comboDamage,
+      comboCritical,
     }));
   }
 
@@ -155,7 +157,7 @@ class Network {
       case 'pvp_attacked': {
         // Opponent attacked us
         if (currentPvpCombat) {
-          const lost = currentPvpCombat.opponentAttack(msg.damage, msg.critical);
+          const lost = currentPvpCombat.opponentAttack(msg.damage, msg.critical, msg.comboDamage || 0);
           // Flash effect on player sprite
           flashSprite('battle-p-sprite', msg.critical);
           if (msg.critical) {
@@ -163,8 +165,14 @@ class Network {
           } else {
             soundMonsterAttack();
           }
+          // Combo flash
+          if (msg.comboDamage > 0) {
+            setTimeout(() => {
+              flashSprite('battle-p-sprite', msg.comboCritical);
+            }, 200);
+          }
           updatePvPBattleUI();
-          addBattleLog(`${msg.from} 对你造成了 ${msg.damage} 点伤害${msg.critical ? ' 💥暴击!' : ''}`);
+          addBattleLog(`受伤-${msg.damage}${msg.critical ? ' 💥暴击!' : ''}`);
           if (lost) {
             currentPlayer.pvpLosses++;
             document.getElementById('battle-attack-btn').disabled = true;
