@@ -100,39 +100,58 @@ function startGame() {
   const name = nameInput.value.trim();
   if (!name) return;
 
+  const errEl = document.getElementById('login-error');
+
   // Check duplicate name against online players
   if (network && network.connected && lastNetworkPlayers.some(p => p.name === name)) {
-    const errEl = document.getElementById('login-error');
     errEl.textContent = `⚠ "${name}" 已存在，请换一个名字`;
     errEl.classList.remove('hidden');
     return;
   }
 
-  // Check for save
+  // Check for save: try local first, then server
+  function enterGame(data) {
+    if (data) {
+      currentPlayer = Player.deserialize(data);
+    } else {
+      currentPlayer = new Player(name);
+    }
+    errEl.classList.add('hidden');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    refreshAll();
+    saveGame();
+    if (network) network.login(currentPlayer);
+    startBGM();
+  }
+
+  // 1) Try localStorage
   const saved = localStorage.getItem('pixel_rpg_save');
   if (saved) {
     try {
       const data = JSON.parse(saved);
       if (data.name === name) {
-        currentPlayer = Player.deserialize(data);
-        document.getElementById('login-error').classList.add('hidden');
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('game-screen').classList.remove('hidden');
-        refreshAll();
-        if (network) network.login(currentPlayer);
+        enterGame(data);
         return;
       }
-    } catch (e) { /* corrupted save, start fresh */ }
+    } catch (e) { /* corrupted, fall through */ }
   }
 
-  currentPlayer = new Player(name);
-  document.getElementById('login-error').classList.add('hidden');
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('game-screen').classList.remove('hidden');
-  refreshAll();
-  saveGame();
-  if (network) network.login(currentPlayer);
-  startBGM();
+  // 2) Try server (async)
+  fetch(`/api/load?name=${encodeURIComponent(name)}`)
+    .then(r => r.json())
+    .then(result => {
+      if (result.ok && result.exists && result.data && result.data.name === name) {
+        // Server save found — use it and persist to local too
+        localStorage.setItem('pixel_rpg_save', JSON.stringify(result.data));
+        enterGame(result.data);
+      } else {
+        enterGame(null); // fresh start
+      }
+    })
+    .catch(() => {
+      enterGame(null); // server unreachable, start fresh
+    });
 }
 
 function saveGame() {
@@ -320,7 +339,7 @@ function showHelpModal() {
 <h2>其他</h2>
 <ul>
   <li>点击左上角头像查看详细属性面板</li>
-  <li>存档保存在浏览器 localStorage</li>
+  <li>存档保存在云端和本地</li>
 </ul>`;
   document.getElementById('help-modal').classList.remove('hidden');
 }

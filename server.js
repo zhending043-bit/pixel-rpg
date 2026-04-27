@@ -2,13 +2,46 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Save data directory
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+
+// ========= Save/Load API =========
+app.post('/api/save', (req, res) => {
+  const { name, data } = req.body;
+  if (!name || !data) return res.json({ ok: false, error: 'missing name or data' });
+  const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
+  try {
+    fs.writeFileSync(path.join(DATA_DIR, `${safeName}.json`), JSON.stringify(data));
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/load', (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.json({ ok: false, error: 'missing name' });
+  const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
+  const filePath = path.join(DATA_DIR, `${safeName}.json`);
+  if (!fs.existsSync(filePath)) return res.json({ ok: false, exists: false });
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    res.json({ ok: true, exists: true, data });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
 
 // Online players: { ws -> { name, playerData } }
 const onlinePlayers = new Map();
