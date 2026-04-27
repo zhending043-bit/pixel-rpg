@@ -91,6 +91,9 @@ function initUI(player, onSave) {
     }
   });
 
+  // Debug button
+  document.getElementById('debug-btn').addEventListener('click', debugCheat);
+
   network = new Network();
   network.init(currentPlayer);
 }
@@ -311,6 +314,12 @@ function showHelpModal() {
 }
 
 // ========= Debug =========
+function debugCheat() {
+  currentPlayer.gold += 10000;
+  currentPlayer.zonesUnlocked = 5;
+  addBattleLog('⚡ 调试模式：+10000 金币 & 全部区域已解锁！');
+  saveAndRefresh();
+}
 // ========= Stats Bar =========
 function updateStats() {
   const s = currentPlayer.getStats();
@@ -706,19 +715,66 @@ function closeBattleOverlay() {
 }
 
 // ========= Inventory =========
+
+/** Check if any item has legendary or red rarity */
+function hasHighRarityItems(items) {
+  return items.some(item => item.rarity === '传说' || item.rarity === '红装');
+}
+
+const SELL_CONFIRM_KEY = 'pixel_rpg_sell_confirm_skip';
+
+/** Show a confirmation dialog when selling high-rarity items */
+function showSellConfirm(items, onConfirm) {
+  if (localStorage.getItem(SELL_CONFIRM_KEY) === '1') {
+    onConfirm();
+    return;
+  }
+  if (!hasHighRarityItems(items)) {
+    onConfirm();
+    return;
+  }
+
+  const overlay = document.getElementById('sell-confirm-overlay');
+  const yesBtn = document.getElementById('sell-confirm-yes');
+  const noBtn = document.getElementById('sell-confirm-no');
+  const checkbox = document.getElementById('sell-confirm-checkbox');
+
+  overlay.classList.remove('hidden');
+
+  function cleanup() {
+    overlay.classList.add('hidden');
+    yesBtn.onclick = null;
+    noBtn.onclick = null;
+  }
+
+  yesBtn.onclick = () => {
+    if (checkbox.checked) localStorage.setItem(SELL_CONFIRM_KEY, '1');
+    cleanup();
+    onConfirm();
+  };
+
+  noBtn.onclick = () => {
+    if (checkbox.checked) localStorage.setItem(SELL_CONFIRM_KEY, '1');
+    cleanup();
+  };
+}
+
 function recycleAll() {
   const inv = currentPlayer.inventory;
   if (inv.length === 0) return;
-  let total = 0;
-  const names = inv.map(item => {
-    const price = calcSellPrice(item);
-    total += price;
-    return item.name;
+
+  showSellConfirm(inv, () => {
+    let total = 0;
+    const names = inv.map(item => {
+      const price = calcSellPrice(item);
+      total += price;
+      return item.name;
+    });
+    currentPlayer.gold += total;
+    currentPlayer.inventory = [];
+    addBattleLog(`♻ 一键回收了 ${names.length} 件装备，获得 💰${total}G`);
+    saveAndRefresh();
   });
-  currentPlayer.gold += total;
-  currentPlayer.inventory = [];
-  addBattleLog(`♻ 一键回收了 ${names.length} 件装备，获得 💰${total}G`);
-  saveAndRefresh();
 }
 
 function renderInventory() {
@@ -779,13 +835,15 @@ function calcSellPrice(item) {
 }
 
 function recycleItem(item) {
-  const price = calcSellPrice(item);
-  const idx = currentPlayer.inventory.indexOf(item);
-  if (idx === -1) return;
-  currentPlayer.inventory.splice(idx, 1);
-  currentPlayer.gold += price;
-  addBattleLog(`♻ 回收了 ${item.name}，获得 💰${price}G`);
-  saveAndRefresh();
+  showSellConfirm([item], () => {
+    const price = calcSellPrice(item);
+    const idx = currentPlayer.inventory.indexOf(item);
+    if (idx === -1) return;
+    currentPlayer.inventory.splice(idx, 1);
+    currentPlayer.gold += price;
+    addBattleLog(`♻ 回收了 ${item.name}，获得 💰${price}G`);
+    saveAndRefresh();
+  });
 }
 
 function renderEquipped() {

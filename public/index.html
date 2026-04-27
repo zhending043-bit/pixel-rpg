@@ -40,6 +40,7 @@
               <span id="stat-def">🛡 DEF: 5</span>
               <span id="stat-gold">💰 0</span>
               <button id="help-btn" class="pixel-btn" style="font-size:7px;padding:1px 6px;border-color:#42a5f5;color:#42a5f5">?</button>
+              <button id="debug-btn" class="pixel-btn" style="font-size:7px;padding:1px 6px;border-color:#ff1744;color:#ff1744">⚡</button>
             <div class="bar-container">
               <div class="bar-label">EXP</div>
               <div class="bar-bg">
@@ -182,6 +183,20 @@
           </div>
           <div id="stats-modal-body"></div>
           <button id="stats-modal-close" class="pixel-btn" style="margin-top:10px">关闭</button>
+        </div>
+      </div>
+
+      <!-- Sell Confirm Modal -->
+      <div id="sell-confirm-overlay" class="hidden">
+        <div id="sell-confirm-box">
+          <div id="sell-confirm-msg">您售卖的装备包含金色与红色装备，是否继续？</div>
+          <label id="sell-confirm-checkbox-label">
+            <input type="checkbox" id="sell-confirm-checkbox"> 不要再询问
+          </label>
+          <div id="sell-confirm-actions">
+            <button id="sell-confirm-yes" class="pixel-btn" style="border-color:#4caf50;color:#4caf50">是</button>
+            <button id="sell-confirm-no" class="pixel-btn" style="border-color:#ef5350;color:#ef5350">否</button>
+          </div>
         </div>
       </div>
 
