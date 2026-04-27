@@ -127,6 +127,7 @@ class PvPCombat {
       atk: opponentData.atk,
       def: opponentData.def,
     };
+    this.opponentData = opponentData; // full data for loot
     this.onLog = onLog;
     this.myTurn = true; // Challenger goes first
     this.finished = false;

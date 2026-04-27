@@ -542,6 +542,8 @@ function closeBattleOverlay() {
   // Hide mercy/kill buttons
   const mercyDiv = document.getElementById('mercy-kill-div');
   if (mercyDiv) mercyDiv.style.display = 'none';
+  const pvpMercyDiv = document.getElementById('pvp-mercy-kill-div');
+  if (pvpMercyDiv) pvpMercyDiv.style.display = 'none';
   // Heal to full after battle (unless game over)
   if (currentPlayer.lives > 0) {
     currentPlayer.hp = currentPlayer.effectiveMaxHp;
@@ -920,9 +922,9 @@ function showPvPChallenge(from) {
 function openPvPOverlay(opponentData, isMyTurn) {
   // Heal both players to full for fair PvP
   currentPlayer.hp = currentPlayer.effectiveMaxHp;
-  if (opponentData.maxHp) {
-    opponentData.hp = opponentData.maxHp;
-  }
+  const oppMaxHp = opponentData.effectiveMaxHp || opponentData.maxHp || opponentData.hp;
+  opponentData.hp = oppMaxHp;
+  opponentData.maxHp = oppMaxHp;
 
   currentPvpCombat = new PvPCombat(currentPlayer, opponentData, addPvPLog);
   currentPvpCombat.myTurn = isMyTurn;
@@ -935,10 +937,7 @@ function openPvPOverlay(opponentData, isMyTurn) {
   overlay.classList.remove('hidden');
   document.getElementById('battle-e-name').textContent = opponentData.name;
   document.getElementById('battle-result').classList.add('hidden');
-  document.getElementById('battle-actions').classList.remove('hidden');
-  document.getElementById('battle-attack-btn').classList.remove('hidden');
-  document.getElementById('battle-attack-btn').textContent = '⚔ 攻击';
-  document.getElementById('battle-flee-btn').classList.add('hidden');
+  document.getElementById('battle-actions').classList.add('hidden');
   document.getElementById('reward-overlay').classList.add('hidden');
   document.getElementById('battle-attack-btn').disabled = !isMyTurn;
   document.getElementById('battle-attack-btn').onclick = pvpBattleAttack;
@@ -957,8 +956,8 @@ function openPvPOverlay(opponentData, isMyTurn) {
   addBattleLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
   addPvPLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
   if (isMyTurn) {
-    addBattleLog('⏳ 你的回合，请攻击！');
-    addPvPLog('⏳ 你的回合，请攻击！');
+    addBattleLog('⏳ 自动攻击中...');
+    addPvPLog('⏳ 自动攻击中...');
   } else {
     addBattleLog('⏳ 等待对手攻击...');
     addPvPLog('⏳ 等待对手攻击...');
@@ -978,6 +977,14 @@ function updatePvPBattleUI() {
   document.getElementById('battle-e-hp').style.width = `${Math.max(0, eHpPct)}%`;
 }
 
+function autoPvPAttack() {
+  if (!currentPvpCombat || currentPvpCombat.finished || !currentPvpCombat.myTurn) return;
+  document.getElementById('battle-attack-btn').disabled = true;
+  setTimeout(() => {
+    pvpBattleAttack();
+  }, 600);
+}
+
 function pvpBattleAttack() {
   if (!currentPvpCombat || currentPvpCombat.finished) return;
 
@@ -985,6 +992,13 @@ function pvpBattleAttack() {
   updatePvPBattleUI();
 
   if (result) {
+    // Flash effect on opponent sprite
+    flashSprite('battle-e-sprite', result.critical);
+    if (result.critical) {
+      soundCriticalHit();
+    } else {
+      soundPlayerAttack();
+    }
     // Show attack result in battle log
     const critText = result.critical ? ' 💥暴击！' : '';
     addBattleLog(`你对 ${currentPvpCombat.opponent.name} 造成了 ${result.damage} 点伤害${critText}`);
@@ -995,14 +1009,52 @@ function pvpBattleAttack() {
     if (result.won) {
       currentPlayer.pvpWins++;
       document.getElementById('battle-attack-btn').disabled = true;
-      network.sendPvPResult(currentPvpCombat.opponent.name, currentPlayer.name);
+      document.getElementById('battle-close-btn').style.display = 'none';
       const resultDiv = document.getElementById('battle-result');
       resultDiv.classList.remove('hidden');
-      document.getElementById('battle-result-text').textContent = '🏆 PvP 胜利！';
-      addBattleLog(`🎉 你击败了 ${currentPvpCombat.opponent.name}！`);
+
+      const opp = currentPvpCombat.opponentData;
+      const halfGold = Math.floor((opp.gold || 0) / 2);
+
+      document.getElementById('battle-result-text').textContent =
+        `🏆 你击败了 ${opp.name}！怎么处置？`;
+
+      let mercyDiv = document.getElementById('pvp-mercy-kill-div');
+      if (!mercyDiv) {
+        mercyDiv = document.createElement('div');
+        mercyDiv.id = 'pvp-mercy-kill-div';
+        mercyDiv.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-top:10px';
+        resultDiv.appendChild(mercyDiv);
+      } else {
+        mercyDiv.style.display = 'flex';
+      }
+      mercyDiv.innerHTML = `
+        <button id="pvp-mercy-btn" class="pixel-btn" style="border-color:#4caf50;color:#4caf50">😇 放了他 (+${halfGold}G)</button>
+        <button id="pvp-kill-btn" class="pixel-btn" style="border-color:#ff1744;color:#ff1744">💀 杀掉他 (全部)</button>
+      `;
+
+      document.getElementById('pvp-mercy-btn').onclick = () => {
+        currentPlayer.gold += halfGold;
+        network.sendPvPResult(opp.name, currentPlayer.name, 'mercy', halfGold);
+        addBattleLog(`💰 放过了 ${opp.name}，获得了 ${halfGold} 金币`);
+        finishPvP();
+      };
+
+      document.getElementById('pvp-kill-btn').onclick = () => {
+        const goldGained = opp.gold || 0;
+        let itemCount = 0;
+        currentPlayer.gold += goldGained;
+        [opp.weapon, opp.armor, opp.accessory, opp.helmet, opp.boots].forEach(item => {
+          if (item) { currentPlayer.inventory.push(item); itemCount++; }
+        });
+        (opp.inventory || []).forEach(item => { currentPlayer.inventory.push(item); itemCount++; });
+        network.sendPvPResult(opp.name, currentPlayer.name, 'kill', goldGained);
+        addBattleLog(`💀 干掉了 ${opp.name}，抢了 ${goldGained}G 和 ${itemCount} 件装备！`);
+        finishPvP();
+      };
+
       saveGame();
       refreshAll();
-      // Don't auto-close - let player see the result and click close
       return;
     }
 
@@ -1010,4 +1062,17 @@ function pvpBattleAttack() {
     addBattleLog('⏳ 等待对手攻击...');
     document.getElementById('battle-attack-btn').disabled = true;
   }
+}
+
+function finishPvP() {
+  document.getElementById('pvp-mercy-kill-div').style.display = 'none';
+  document.getElementById('battle-close-btn').style.display = '';
+  document.getElementById('battle-result').classList.add('hidden');
+  document.getElementById('battle-overlay').classList.add('hidden');
+  if (currentPvpCombat && network) {
+    network.sendPvPBattleEnd();
+  }
+  currentPvpCombat = null;
+  saveGame();
+  refreshAll();
 }

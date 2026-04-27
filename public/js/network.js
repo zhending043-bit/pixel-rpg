@@ -95,12 +95,15 @@ class Network {
     }));
   }
 
-  sendPvPResult(target, winner) {
+  sendPvPResult(target, winner, lootType, lootValue, lootItems) {
     if (!this.connected) return;
     this.ws.send(JSON.stringify({
       type: 'pvp_result',
       target,
       winner,
+      lootType,
+      lootValue,
+      lootItems,
     }));
   }
 
@@ -138,9 +141,9 @@ class Network {
         const isMyTurn = attacker === currentPlayer.name;
 
         openPvPOverlay(opponentData, isMyTurn);
-        // Rebind attack button for PvP
         document.getElementById('battle-attack-btn').onclick = pvpBattleAttack;
-        document.getElementById('battle-attack-btn').disabled = !isMyTurn;
+        document.getElementById('battle-attack-btn').disabled = true;
+        if (isMyTurn) autoPvPAttack();
         break;
       }
 
@@ -148,6 +151,13 @@ class Network {
         // Opponent attacked us
         if (currentPvpCombat) {
           const lost = currentPvpCombat.opponentAttack(msg.damage, msg.critical);
+          // Flash effect on player sprite
+          flashSprite('battle-p-sprite', msg.critical);
+          if (msg.critical) {
+            soundCriticalHit();
+          } else {
+            soundMonsterAttack();
+          }
           updatePvPBattleUI();
           addBattleLog(`${msg.from} 对你造成了 ${msg.damage} 点伤害${msg.critical ? ' 💥暴击!' : ''}`);
           if (lost) {
@@ -159,9 +169,9 @@ class Network {
             saveGame();
             refreshAll();
           } else {
-            // Our turn
-            document.getElementById('battle-attack-btn').disabled = false;
-            addBattleLog('⏳ 你的回合，请攻击！');
+            document.getElementById('battle-attack-btn').disabled = true;
+            addBattleLog('⏳ 你的回合，自动攻击...');
+            autoPvPAttack();
           }
         }
         break;
@@ -182,10 +192,44 @@ class Network {
         }
         break;
 
-      case 'pvp_result':
+      case 'pvp_result': {
         addBattleLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
         addPvPLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
+        // Apply loot loss to defeated player
+        if (msg.lootType === 'mercy') {
+          const lostGold = Math.floor((currentPlayer.gold || 0) / 2);
+          currentPlayer.gold -= lostGold;
+          addBattleLog(`💰 ${msg.winner} 放过了你，你失去了 ${lostGold} 金币`);
+        } else if (msg.lootType === 'kill') {
+          const itemCount = (currentPlayer.inventory || []).length +
+            (currentPlayer.weapon ? 1 : 0) + (currentPlayer.armor ? 1 : 0) +
+            (currentPlayer.accessory ? 1 : 0) + (currentPlayer.helmet ? 1 : 0) +
+            (currentPlayer.boots ? 1 : 0);
+          currentPlayer.gold = 0;
+          currentPlayer.weapon = null;
+          currentPlayer.armor = null;
+          currentPlayer.accessory = null;
+          currentPlayer.helmet = null;
+          currentPlayer.boots = null;
+          currentPlayer.inventory = [];
+          addBattleLog(`💀 ${msg.winner} 杀了你，抢走了你所有的金币和 ${itemCount} 件装备！`);
+        }
+        // Update defeat text if battle overlay is still showing
+        const resultDiv = document.getElementById('battle-result');
+        if (!resultDiv.classList.contains('hidden')) {
+          for (const child of resultDiv.children) {
+            if (child.id === 'battle-close-btn' || child.id === 'pvp-mercy-kill-div') continue;
+            if (child.tagName === 'P' || child.id === 'battle-result-text') {
+              child.textContent = msg.lootType === 'kill'
+                ? `💀 被 ${msg.winner} 击杀，损失全部金币和装备！`
+                : `😅 ${msg.winner} 放过了你，损失了一半金币`;
+            }
+          }
+        }
+        saveGame();
+        refreshAll();
         break;
+      }
 
       case 'error':
         addPvPLog(`⚠ ${msg.message}`);

@@ -151,6 +151,9 @@ wss.on('connection', (ws) => {
               type: 'pvp_result',
               winner: msg.winner,
               from: ws.playerName,
+              lootType: msg.lootType,
+              lootValue: msg.lootValue,
+              lootItems: msg.lootItems,
             }));
             return;
           }
