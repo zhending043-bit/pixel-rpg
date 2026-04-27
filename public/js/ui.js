@@ -100,6 +100,10 @@ function startGame() {
   const name = nameInput.value.trim();
   if (!name) return;
 
+  // Disable button to prevent double-click during async server fetch
+  const startBtn = document.getElementById('start-game-btn');
+  startBtn.disabled = true;
+
   const errEl = document.getElementById('login-error');
 
   // Check duplicate name against online players
@@ -151,6 +155,9 @@ function startGame() {
     })
     .catch(() => {
       enterGame(null); // server unreachable, start fresh
+    })
+    .finally(() => {
+      startBtn.disabled = false;
     });
 }
 
