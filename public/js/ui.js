@@ -91,9 +91,6 @@ function initUI(player, onSave) {
     }
   });
 
-  // Debug button
-  document.getElementById('debug-btn').addEventListener('click', debugCheat);
-
   network = new Network();
   network.init(currentPlayer);
 }
@@ -313,13 +310,6 @@ function showHelpModal() {
   document.getElementById('help-modal').classList.remove('hidden');
 }
 
-// ========= Debug =========
-function debugCheat() {
-  currentPlayer.gold += 10000;
-  currentPlayer.zonesUnlocked = 5;
-  addBattleLog('⚡ 调试模式：+10000 金币 & 全部区域已解锁！');
-  saveAndRefresh();
-}
 // ========= Stats Bar =========
 function updateStats() {
   const s = currentPlayer.getStats();
