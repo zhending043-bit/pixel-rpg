@@ -17,12 +17,14 @@ const ZONE_RARITY_WEIGHTS = [
   [  2,  5,  10,  33,  50],  // 深渊     → 传说 + 史诗 + 稀有 + 优秀 + 普通
 ];
 
-const EQUIP_TYPES = ['weapon', 'armor', 'accessory'];
-const TYPE_NAMES = { weapon: '武器', armor: '防具', accessory: '饰品' };
+const EQUIP_TYPES = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
+const TYPE_NAMES = { weapon: '武器', armor: '防具', accessory: '饰品', helmet: '头盔', boots: '靴子' };
 
 const WEAPON_NAMES = ['短剑', '铁剑', '钢刀', '战斧', '长矛', '巨剑', '龙骨剑', '魔杖', '双刃刀', '流星锤'];
 const ARMOR_NAMES = ['布甲', '皮甲', '铁甲', '钢铠', '锁子甲', '龙鳞甲', '板甲', '暗影衣', '法袍', '战铠'];
 const ACCESSORY_NAMES = ['戒指', '项链', '手镯', '耳环', '徽章', '护符', '宝石', '腰带', '披风', '王冠'];
+const HELMET_NAMES = ['头巾', '铁盔', '钢盔', '兜鍪', '王冠', '龙角盔', '法冠', '面罩', '战盔', '暗影兜帽'];
+const BOOTS_NAMES = ['布靴', '皮靴', '铁靴', '钢靴', '龙鳞靴', '速行靴', '战靴', '法靴', '暗影靴', '踏风靴'];
 
 const PREFIXES = {
   common: ['破旧', '普通', '简陋'],
@@ -71,6 +73,16 @@ function generateEquipment(monsterLevel, zoneLevel = 0, forceType = null) {
       namePool = ACCESSORY_NAMES;
       mainStat = Math.random() < 0.5 ? 'atk' : 'def';
       subStat = 'hp';
+      break;
+    case 'helmet':
+      namePool = HELMET_NAMES;
+      mainStat = 'def';
+      subStat = Math.random() < 0.4 ? 'hp' : null;
+      break;
+    case 'boots':
+      namePool = BOOTS_NAMES;
+      mainStat = 'def';
+      subStat = Math.random() < 0.3 ? 'atk' : null;
       break;
   }
 
@@ -135,6 +147,16 @@ function createRedEquipment(monsterLevel, type) {
       mainStat = 'atk';
       subStat = 'hp';
       break;
+    case 'helmet':
+      namePool = ['龙冠', '神冕', '天盔', '不朽面罩', '至高王冠'];
+      mainStat = 'def';
+      subStat = 'hp';
+      break;
+    case 'boots':
+      namePool = ['龙鳞靴', '神行靴', '天踏', '不灭战靴', '至高之靴'];
+      mainStat = 'def';
+      subStat = 'atk';
+      break;
   }
 
   const baseName = pickRandom(namePool);
@@ -168,8 +190,8 @@ function createRedEquipment(monsterLevel, type) {
 /** Get gold price for an equipment item */
 function getEquipmentPrice(item) {
   if (item.rarity === '红装') {
-    const prices = { weapon: 3000, armor: 2000, accessory: 1500 };
-    return prices[item.type] || 2000;
+    const prices = { weapon: 9000, armor: 6000, accessory: 4500, helmet: 6000, boots: 4500 };
+    return prices[item.type] || 6000;
   }
   // Other rarities not sold
   return 0;

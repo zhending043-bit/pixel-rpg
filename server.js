@@ -12,6 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Online players: { ws -> { name, playerData } }
 const onlinePlayers = new Map();
+// Active PvP battles: { ws -> opponentWs }
+const activePvPBattles = new Map();
 
 function broadcast(message, excludeWs = null) {
   const data = JSON.stringify(message);
@@ -92,9 +94,12 @@ wss.on('connection', (ws) => {
           if (info.name === challengerName && challengerWs !== ws) {
             if (msg.accept) {
               // Start battle - exchange player data
-              // challengerWs = initiator, ws = responder
               const defenderData = onlinePlayers.get(ws).playerData;
               const challengerData = info.playerData;
+
+              // Track active PvP battle for disconnect handling
+              activePvPBattles.set(challengerWs, ws);
+              activePvPBattles.set(ws, challengerWs);
 
               challengerWs.send(JSON.stringify({
                 type: 'battle_start',
@@ -108,7 +113,7 @@ wss.on('connection', (ws) => {
                 attacker: challengerName,
               }));
             } else {
-              targetWs.send(JSON.stringify({
+              ws.send(JSON.stringify({
                 type: 'challenge_declined',
                 from: ws.playerName,
               }));
@@ -152,6 +157,16 @@ wss.on('connection', (ws) => {
         }
         break;
       }
+
+      case 'pvp_battle_end': {
+        // Clean up active PvP battle tracking
+        const opponent = activePvPBattles.get(ws);
+        if (opponent) {
+          activePvPBattles.delete(opponent);
+          activePvPBattles.delete(ws);
+        }
+        break;
+      }
     }
   });
 
@@ -160,6 +175,16 @@ wss.on('connection', (ws) => {
       onlinePlayers.delete(ws);
       broadcast({ type: 'players', list: getPlayerList() });
       console.log(`${ws.playerName} disconnected`);
+    }
+    // Notify PvP opponent if in active battle
+    const opponent = activePvPBattles.get(ws);
+    if (opponent) {
+      opponent.send(JSON.stringify({
+        type: 'pvp_opponent_disconnected',
+        from: ws.playerName || '对手',
+      }));
+      activePvPBattles.delete(opponent);
+      activePvPBattles.delete(ws);
     }
   });
 });

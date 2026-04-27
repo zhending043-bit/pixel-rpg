@@ -35,6 +35,7 @@
           <span id="stat-atk">⚔ ATK: 10</span>
           <span id="stat-def">🛡 DEF: 5</span>
           <span id="stat-gold">💰 0</span>
+          <span id="debug-btn" style="cursor:pointer;font-size:6px;color:#333;user-select:none" title="调试">⚙</span>
         <div class="bar-container">
           <div class="bar-label">EXP</div>
           <div class="bar-bg">
@@ -52,23 +53,30 @@
         <button class="tab-btn" data-tab="pvp">🌐 联机</button>
       </div>
 
+      <div id="zone-selector"></div>
+
       <!-- Tab Content: Combat -->
       <div id="tab-combat" class="tab-content active">
-        <div id="zone-selector"></div>
         <div id="monster-list"></div>
         <div id="combat-log"></div>
       </div>
 
       <!-- Tab Content: Inventory -->
       <div id="tab-inventory" class="tab-content">
-        <div id="equipped-slots">
-          <h3>已装备</h3>
-          <div id="equipped-weapon" class="equip-slot" data-slot="weapon">武器 - 空</div>
-          <div id="equipped-armor" class="equip-slot" data-slot="armor">防具 - 空</div>
-          <div id="equipped-accessory" class="equip-slot" data-slot="accessory">饰品 - 空</div>
+        <div id="inventory-layout">
+          <div id="equipped-sidebar">
+            <h3>已装备</h3>
+            <div id="equipped-weapon" class="equip-slot" data-slot="weapon">武器 - 空</div>
+            <div id="equipped-armor" class="equip-slot" data-slot="armor">防具 - 空</div>
+            <div id="equipped-accessory" class="equip-slot" data-slot="accessory">饰品 - 空</div>
+            <div id="equipped-helmet" class="equip-slot" data-slot="helmet">头盔 - 空</div>
+            <div id="equipped-boots" class="equip-slot" data-slot="boots">靴子 - 空</div>
+          </div>
+          <div id="inventory-main">
+            <h3>背包</h3>
+            <div id="inventory-list"></div>
+          </div>
         </div>
-        <h3>背包</h3>
-        <div id="inventory-list"></div>
       </div>
 
       <!-- Tab Content: Shop -->
@@ -80,11 +88,27 @@
 
       <!-- Tab Content: PvP -->
       <div id="tab-pvp" class="tab-content">
+        <div id="pvp-stats-bar">
+          PvP 战绩: 🏆 <span id="pvp-wins">0</span> 胜 / 💀 <span id="pvp-losses">0</span> 负
+        </div>
         <div id="online-players">
           <h3>在线玩家</h3>
           <div id="player-list"></div>
         </div>
         <div id="pvp-log"></div>
+      </div>
+
+      <!-- Challenge Overlay -->
+      <div id="challenge-overlay" class="hidden">
+        <div id="challenge-box">
+          <div id="challenge-title">⚔ PvP 挑战</div>
+          <div id="challenge-msg"></div>
+          <div id="challenge-countdown">10</div>
+          <div id="challenge-actions">
+            <button id="challenge-accept-btn" class="pixel-btn" style="border-color:#4caf50;color:#4caf50">✅ 接受</button>
+            <button id="challenge-decline-btn" class="pixel-btn" style="border-color:#ef5350;color:#ef5350">❌ 拒绝</button>
+          </div>
+        </div>
       </div>
 
       <!-- Battle Overlay Modal -->

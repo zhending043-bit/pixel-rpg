@@ -11,12 +11,16 @@ class Player {
     this.weapon = null;
     this.armor = null;
     this.accessory = null;
+    this.helmet = null;
+    this.boots = null;
     this.inventory = [];
     this.zonesUnlocked = 1;
     this.defeatedMonsters = []; // Track monster names defeated for zone progression
     this.encounteredMonsters = []; // Track monster names encountered for auto-attack
     this.lootedCounts = { '普通': 0, '优秀': 0, '稀有': 0, '史诗': 0, '传说': 0 };
     this.lives = 3;
+    this.pvpWins = 0;
+    this.pvpLosses = 0;
   }
 
   get maxExp() {
@@ -28,6 +32,8 @@ class Player {
     if (this.weapon) bonus += this.weapon.atk;
     if (this.armor && this.armor.atk) bonus += this.armor.atk;
     if (this.accessory) bonus += this.accessory.atk || 0;
+    if (this.helmet && this.helmet.atk) bonus += this.helmet.atk;
+    if (this.boots && this.boots.atk) bonus += this.boots.atk;
     return this.baseAtk + bonus;
   }
 
@@ -36,6 +42,8 @@ class Player {
     if (this.weapon && this.weapon.def) bonus += this.weapon.def;
     if (this.armor) bonus += this.armor.def;
     if (this.accessory) bonus += this.accessory.def || 0;
+    if (this.helmet) bonus += this.helmet.def;
+    if (this.boots) bonus += this.boots.def;
     return this.baseDef + bonus;
   }
 
@@ -44,6 +52,8 @@ class Player {
     if (this.weapon && this.weapon.hp) bonus += this.weapon.hp;
     if (this.armor && this.armor.hp) bonus += this.armor.hp;
     if (this.accessory && this.accessory.hp) bonus += this.accessory.hp;
+    if (this.helmet && this.helmet.hp) bonus += this.helmet.hp;
+    if (this.boots && this.boots.hp) bonus += this.boots.hp;
     return bonus;
   }
 
@@ -131,12 +141,16 @@ class Player {
       weapon: this.weapon,
       armor: this.armor,
       accessory: this.accessory,
+      helmet: this.helmet,
+      boots: this.boots,
       inventory: this.inventory,
       zonesUnlocked: this.zonesUnlocked,
       defeatedMonsters: this.defeatedMonsters,
       encounteredMonsters: this.encounteredMonsters,
       lootedCounts: this.lootedCounts,
       lives: this.lives,
+      pvpWins: this.pvpWins,
+      pvpLosses: this.pvpLosses,
     };
   }
 
@@ -153,12 +167,16 @@ class Player {
     p.weapon = data.weapon;
     p.armor = data.armor;
     p.accessory = data.accessory;
+    p.helmet = data.helmet || null;
+    p.boots = data.boots || null;
     p.inventory = data.inventory || [];
     p.zonesUnlocked = data.zonesUnlocked || 1;
     p.defeatedMonsters = data.defeatedMonsters || [];
     p.encounteredMonsters = data.encounteredMonsters || [];
     p.lootedCounts = data.lootedCounts || { '普通': 0, '优秀': 0, '稀有': 0, '史诗': 0, '传说': 0 };
     p.lives = data.lives !== undefined ? data.lives : 3;
+    p.pvpWins = data.pvpWins || 0;
+    p.pvpLosses = data.pvpLosses || 0;
     return p;
   }
 }

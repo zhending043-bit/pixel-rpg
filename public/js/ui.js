@@ -66,6 +66,20 @@ function initUI(player, onSave) {
     if (btn) soundClick();
   });
 
+  // Debug button (3 rapid clicks to activate)
+  let debugClicks = 0;
+  let debugTimer = null;
+  document.getElementById('debug-btn').addEventListener('click', () => {
+    debugClicks++;
+    if (debugTimer) clearTimeout(debugTimer);
+    if (debugClicks >= 3) {
+      debugClicks = 0;
+      triggerDebug();
+    } else {
+      debugTimer = setTimeout(() => { debugClicks = 0; }, 500);
+    }
+  });
+
   network = new Network();
   network.init(currentPlayer);
 }
@@ -119,6 +133,35 @@ function refreshAll() {
   renderInventory();
   renderEquipped();
   renderShop();
+  renderPvPStats();
+}
+
+function renderPvPStats() {
+  document.getElementById('pvp-wins').textContent = currentPlayer.pvpWins || 0;
+  document.getElementById('pvp-losses').textContent = currentPlayer.pvpLosses || 0;
+}
+
+// ========= Debug =========
+function triggerDebug() {
+  currentPlayer.gold += 10000;
+  currentPlayer.zonesUnlocked = 6;
+  // Level up to 100
+  while (currentPlayer.level < 100) {
+    currentPlayer.levelUp();
+  }
+  currentPlayer.hp = currentPlayer.effectiveMaxHp;
+  // Mark all monsters as defeated for visual
+  ZONES.forEach(zone => {
+    zone.monsters.forEach(m => {
+      if (!currentPlayer.defeatedMonsters.includes(m.name)) {
+        currentPlayer.defeatedMonsters.push(m.name);
+      }
+    });
+  });
+  // Fill looted counts to unlock all zones
+  currentPlayer.lootedCounts = { '普通': 3, '优秀': 3, '稀有': 3, '史诗': 3, '传说': 3 };
+  addBattleLog('⚙ 调试模式已激活：金币+10000，等级100，全部区域解锁');
+  saveAndRefresh();
 }
 
 // ========= Stats Bar =========
@@ -199,7 +242,7 @@ function renderMonsters() {
     const isBoss = selectedZoneIdx === 5;
     const card = document.createElement('div');
     card.className = `monster-card ${defeated ? 'defeated' : ''} ${isBoss ? 'boss' : ''}`;
-    const slotIcons = { weapon: '⚔', armor: '🛡', accessory: '💍' };
+    const slotIcons = { weapon: '⚔', armor: '🛡', accessory: '💍', helmet: '⛑', boots: '👢' };
 
     if (isBoss) {
       card.innerHTML = `
@@ -225,6 +268,10 @@ function renderMonsters() {
 function startPvECombat(monsterData) {
   if (currentPlayer.hp <= 0 || currentPlayer.lives <= 0) {
     addBattleLog('💀 你已经没有命了！游戏结束...');
+    return;
+  }
+  if (currentPvpCombat && !currentPvpCombat.finished) {
+    addBattleLog('⚠ 你正在进行 PvP 战斗！');
     return;
   }
 
@@ -499,6 +546,10 @@ function closeBattleOverlay() {
   if (currentPlayer.lives > 0) {
     currentPlayer.hp = currentPlayer.effectiveMaxHp;
   }
+  // Notify server PvP battle ended (so disconnect tracking is cleaned up)
+  if (currentPvpCombat && network) {
+    network.sendPvPBattleEnd();
+  }
   currentCombat = null;
   currentPvpCombat = null;
   currentBot = null;
@@ -518,16 +569,24 @@ function renderInventory() {
     const card = document.createElement('div');
     card.className = 'item-card';
     card.style.borderColor = item.color;
+    const sellPrice = calcSellPrice(item);
     card.innerHTML = `
       <div class="item-name" style="color:${item.color}">${item.name}</div>
       <div class="item-type">${TYPE_NAMES[item.type]} Lv.${item.level}</div>
       <div class="item-stats">${getEquipmentStatsText(item)}</div>
-      <button class="pixel-btn small equip-btn" style="border-color:${item.color}">装备</button>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="pixel-btn small equip-btn" style="border-color:${item.color}">装备</button>
+        <button class="pixel-btn small recycle-btn" style="border-color:#ffd54f;color:#ffd54f">回收💰${sellPrice}</button>
+      </div>
     `;
     card.querySelector('.equip-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       currentPlayer.equip(item);
       saveAndRefresh();
+    });
+    card.querySelector('.recycle-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      recycleItem(item);
     });
     // Click to equip
     card.addEventListener('click', () => {
@@ -538,8 +597,24 @@ function renderInventory() {
   });
 }
 
+function calcSellPrice(item) {
+  const rarityMultipliers = { '普通': 1, '优秀': 3, '稀有': 8, '史诗': 20, '传说': 50, '红装': 80 };
+  const mult = rarityMultipliers[item.rarity] || 1;
+  return Math.max(1, Math.floor((5 + item.level * 2) * mult));
+}
+
+function recycleItem(item) {
+  const price = calcSellPrice(item);
+  const idx = currentPlayer.inventory.indexOf(item);
+  if (idx === -1) return;
+  currentPlayer.inventory.splice(idx, 1);
+  currentPlayer.gold += price;
+  addBattleLog(`♻ 回收了 ${item.name}，获得 💰${price}G`);
+  saveAndRefresh();
+}
+
 function renderEquipped() {
-  const slots = ['weapon', 'armor', 'accessory'];
+  const slots = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
   slots.forEach(slot => {
     const el = document.getElementById(`equipped-${slot}`);
     const item = currentPlayer[slot];
@@ -562,8 +637,8 @@ function renderShop() {
   const container = document.getElementById('shop-list');
   container.innerHTML = '';
 
-  const types = ['weapon', 'armor', 'accessory'];
-  const typeNames = { weapon: '武器', armor: '防具', accessory: '饰品' };
+  const types = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
+  const typeNames = { weapon: '武器', armor: '防具', accessory: '饰品', helmet: '头盔', boots: '靴子' };
 
   types.forEach(type => {
     const item = createRedEquipment(30, type);
@@ -600,6 +675,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById('zone-selector').style.display = tab === 'combat' ? '' : 'none';
 }
 
 let botAchievementShown = false;
@@ -788,17 +864,72 @@ function addPvPLog(msg) {
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
+let challengeTimer = null;
+
 function showPvPChallenge(from) {
-  if (confirm(`${from} 向你发起了 PvP 挑战！接受吗？`)) {
-    if (network) network.acceptChallenge(from);
-  } else {
-    if (network) network.declineChallenge(from);
+  // Clear any existing challenge
+  if (challengeTimer) {
+    clearInterval(challengeTimer);
+    challengeTimer = null;
   }
+
+  const overlay = document.getElementById('challenge-overlay');
+  const msgEl = document.getElementById('challenge-msg');
+  const countEl = document.getElementById('challenge-countdown');
+  const acceptBtn = document.getElementById('challenge-accept-btn');
+  const declineBtn = document.getElementById('challenge-decline-btn');
+
+  msgEl.textContent = `${from}\n向你发起了 PvP 挑战！`;
+  countEl.textContent = '10';
+  countEl.classList.remove('urgent');
+  overlay.classList.remove('hidden');
+
+  let remaining = 10;
+
+  function cleanup() {
+    if (challengeTimer) {
+      clearInterval(challengeTimer);
+      challengeTimer = null;
+    }
+    overlay.classList.add('hidden');
+  }
+
+  acceptBtn.onclick = () => {
+    cleanup();
+    if (network) network.acceptChallenge(from);
+  };
+
+  declineBtn.onclick = () => {
+    cleanup();
+    if (network) network.declineChallenge(from);
+  };
+
+  challengeTimer = setInterval(() => {
+    remaining--;
+    countEl.textContent = remaining;
+    if (remaining <= 3) {
+      countEl.classList.add('urgent');
+    }
+    if (remaining <= 0) {
+      cleanup();
+      addPvPLog(`⏰ 挑战超时，已自动拒绝 ${from} 的挑战`);
+    }
+  }, 1000);
 }
 
 function openPvPOverlay(opponentData, isMyTurn) {
+  // Heal both players to full for fair PvP
+  currentPlayer.hp = currentPlayer.effectiveMaxHp;
+  if (opponentData.maxHp) {
+    opponentData.hp = opponentData.maxHp;
+  }
+
   currentPvpCombat = new PvPCombat(currentPlayer, opponentData, addPvPLog);
   currentPvpCombat.myTurn = isMyTurn;
+
+  // Clear battle log for PvP
+  battleLogEntries = [];
+  document.getElementById('combat-log').innerHTML = '';
 
   const overlay = document.getElementById('battle-overlay');
   overlay.classList.remove('hidden');
@@ -806,10 +937,14 @@ function openPvPOverlay(opponentData, isMyTurn) {
   document.getElementById('battle-result').classList.add('hidden');
   document.getElementById('battle-actions').classList.remove('hidden');
   document.getElementById('battle-attack-btn').classList.remove('hidden');
+  document.getElementById('battle-attack-btn').textContent = '⚔ 攻击';
   document.getElementById('battle-flee-btn').classList.add('hidden');
   document.getElementById('reward-overlay').classList.add('hidden');
   document.getElementById('battle-attack-btn').disabled = !isMyTurn;
   document.getElementById('battle-attack-btn').onclick = pvpBattleAttack;
+
+  // Set PvP zone background to a neutral one
+  document.getElementById('battle-scene').dataset.zone = 0;
 
   const pSprite = document.getElementById('battle-p-sprite');
   const eSprite = document.getElementById('battle-e-sprite');
@@ -819,10 +954,13 @@ function openPvPOverlay(opponentData, isMyTurn) {
   eSprite.onerror = () => { eSprite.style.display = 'none'; };
 
   updatePvPBattleUI();
+  addBattleLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
   addPvPLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
   if (isMyTurn) {
+    addBattleLog('⏳ 你的回合，请攻击！');
     addPvPLog('⏳ 你的回合，请攻击！');
   } else {
+    addBattleLog('⏳ 等待对手攻击...');
     addPvPLog('⏳ 等待对手攻击...');
   }
 }
@@ -847,20 +985,29 @@ function pvpBattleAttack() {
   updatePvPBattleUI();
 
   if (result) {
+    // Show attack result in battle log
+    const critText = result.critical ? ' 💥暴击！' : '';
+    addBattleLog(`你对 ${currentPvpCombat.opponent.name} 造成了 ${result.damage} 点伤害${critText}`);
+
     // Send attack to opponent
     network.sendPvPAttack(currentPvpCombat.opponent.name, result.damage, result.critical);
 
     if (result.won) {
+      currentPlayer.pvpWins++;
       document.getElementById('battle-attack-btn').disabled = true;
       network.sendPvPResult(currentPvpCombat.opponent.name, currentPlayer.name);
       const resultDiv = document.getElementById('battle-result');
       resultDiv.classList.remove('hidden');
       document.getElementById('battle-result-text').textContent = '🏆 PvP 胜利！';
-      closeBattleOverlay();
+      addBattleLog(`🎉 你击败了 ${currentPvpCombat.opponent.name}！`);
+      saveGame();
+      refreshAll();
+      // Don't auto-close - let player see the result and click close
       return;
     }
 
     // Wait for opponent
+    addBattleLog('⏳ 等待对手攻击...');
     document.getElementById('battle-attack-btn').disabled = true;
   }
 }

@@ -48,6 +48,7 @@ class Network {
 
   login(player) {
     if (!this.connected || !this.ws) return;
+    this.player = player;
     const data = player.serialize();
     this.ws.send(JSON.stringify({
       type: 'login',
@@ -103,6 +104,11 @@ class Network {
     }));
   }
 
+  sendPvPBattleEnd() {
+    if (!this.connected) return;
+    this.ws.send(JSON.stringify({ type: 'pvp_battle_end' }));
+  }
+
   handleMessage(msg) {
     switch (msg.type) {
       case 'login_ok':
@@ -132,8 +138,6 @@ class Network {
         const isMyTurn = attacker === currentPlayer.name;
 
         openPvPOverlay(opponentData, isMyTurn);
-        addPvPLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
-
         // Rebind attack button for PvP
         document.getElementById('battle-attack-btn').onclick = pvpBattleAttack;
         document.getElementById('battle-attack-btn').disabled = !isMyTurn;
@@ -145,20 +149,41 @@ class Network {
         if (currentPvpCombat) {
           const lost = currentPvpCombat.opponentAttack(msg.damage, msg.critical);
           updatePvPBattleUI();
+          addBattleLog(`${msg.from} 对你造成了 ${msg.damage} 点伤害${msg.critical ? ' 💥暴击!' : ''}`);
           if (lost) {
+            currentPlayer.pvpLosses++;
             document.getElementById('battle-attack-btn').disabled = true;
             const resultDiv = document.getElementById('battle-result');
             resultDiv.classList.remove('hidden');
             document.getElementById('battle-result-text').textContent = '💀 PvP 败北...';
+            saveGame();
+            refreshAll();
           } else {
             // Our turn
             document.getElementById('battle-attack-btn').disabled = false;
+            addBattleLog('⏳ 你的回合，请攻击！');
           }
         }
         break;
       }
 
+      case 'pvp_opponent_disconnected':
+        addPvPLog(`⚠ ${msg.from} 断开了连接，PvP 战斗结束`);
+        addBattleLog(`⚠ ${msg.from} 断开了连接，你获胜了！`);
+        if (currentPvpCombat) {
+          currentPvpCombat.finished = true;
+          currentPlayer.pvpWins++;
+          document.getElementById('battle-attack-btn').disabled = true;
+          const resultDiv = document.getElementById('battle-result');
+          resultDiv.classList.remove('hidden');
+          document.getElementById('battle-result-text').textContent = '🏆 对手断线，你获胜了！';
+          saveGame();
+          refreshAll();
+        }
+        break;
+
       case 'pvp_result':
+        addBattleLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
         addPvPLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
         break;
 

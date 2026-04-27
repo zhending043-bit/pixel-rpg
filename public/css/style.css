@@ -298,7 +298,8 @@ body::before {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  padding: 8px 0;
 }
 
 .zone-btn {
@@ -482,11 +483,22 @@ body::before {
   padding: 20px;
 }
 
-/* ========== Equipped Slots ========== */
-#equipped-slots {
+/* ========== Inventory Layout (equipped left, items right) ========== */
+#inventory-layout {
   display: flex;
+  gap: 12px;
+}
+
+#equipped-sidebar {
+  flex: 0 0 140px;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
+}
+
+#inventory-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .equip-slot {
@@ -517,6 +529,18 @@ body::before {
 }
 
 /* ========== PvP ========== */
+#pvp-stats-bar {
+  font-size: 8px;
+  color: #ffd54f;
+  text-align: center;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: #0f0f20;
+  border: 2px solid #444;
+}
+
+#pvp-wins { color: #4caf50; }
+#pvp-losses { color: #ef5350; }
 #player-list {
   display: flex;
   flex-direction: column;
@@ -698,6 +722,76 @@ body::before {
   font-size: 14px;
   color: #ff9800;
   margin-bottom: 12px;
+}
+
+/* ========== Challenge Overlay ========== */
+#challenge-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+#challenge-overlay.hidden {
+  display: none;
+}
+
+#challenge-box {
+  background: #1a1a2e;
+  border: 4px solid #ff9800;
+  padding: 30px 40px;
+  text-align: center;
+  box-shadow:
+    6px 6px 0 #222,
+    0 0 24px rgba(255,152,0,0.3);
+  animation: challengePulse 0.5s ease-out;
+}
+
+@keyframes challengePulse {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+#challenge-title {
+  font-size: 14px;
+  color: #ff9800;
+  margin-bottom: 16px;
+  text-shadow: 2px 2px 0 #8d6e00;
+}
+
+#challenge-msg {
+  font-size: 11px;
+  color: #c8c8d0;
+  margin-bottom: 16px;
+  line-height: 1.8;
+}
+
+#challenge-countdown {
+  font-size: 32px;
+  color: #ffd54f;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 0 #8d6e00;
+  font-family: 'Press Start 2P', monospace;
+}
+
+#challenge-countdown.urgent {
+  color: #ef5350;
+  animation: countdownPulse 0.5s infinite;
+}
+
+@keyframes countdownPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+#challenge-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
 }
 
 /* ========== Sprite Flash Effects ========== */
