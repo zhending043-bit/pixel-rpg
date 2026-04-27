@@ -3,8 +3,11 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
 const fs = require('fs');
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -12,34 +15,87 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Save data directory
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+// ========= MongoDB (persistent) / File fallback =========
+let dbReady = false;
+let db;
+
+async function initDb() {
+  if (MONGODB_URI) {
+    try {
+      const client = new MongoClient(MONGODB_URI, {
+        serverApi: ServerApiVersion.v1,
+      });
+      await client.connect();
+      db = client.db('pixel_rpg');
+      // Create index on name for fast lookup
+      await db.collection('saves').createIndex({ name: 1 }, { unique: true });
+      dbReady = true;
+      console.log('✅ MongoDB connected');
+    } catch (e) {
+      console.warn('❌ MongoDB connection failed, falling back to file storage:', e.message);
+    }
+  } else {
+    console.log('📁 MONGODB_URI not set, using file storage (data/ directory)');
+  }
+}
 
 // ========= Save/Load API =========
-app.post('/api/save', (req, res) => {
+app.post('/api/save', async (req, res) => {
   const { name, data } = req.body;
   if (!name || !data) return res.json({ ok: false, error: 'missing name or data' });
-  const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
-  try {
-    fs.writeFileSync(path.join(DATA_DIR, `${safeName}.json`), JSON.stringify(data));
-    res.json({ ok: true });
-  } catch (e) {
-    res.json({ ok: false, error: e.message });
+
+  if (dbReady) {
+    try {
+      await db.collection('saves').updateOne(
+        { name },
+        { $set: { name, data, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+  } else {
+    // File fallback
+    const DATA_DIR = path.join(__dirname, 'data');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+    const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
+    try {
+      fs.writeFileSync(path.join(DATA_DIR, `${safeName}.json`), JSON.stringify(data));
+      res.json({ ok: true });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
   }
 });
 
-app.get('/api/load', (req, res) => {
+app.get('/api/load', async (req, res) => {
   const { name } = req.query;
   if (!name) return res.json({ ok: false, error: 'missing name' });
-  const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
-  const filePath = path.join(DATA_DIR, `${safeName}.json`);
-  if (!fs.existsSync(filePath)) return res.json({ ok: false, exists: false });
-  try {
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    res.json({ ok: true, exists: true, data });
-  } catch (e) {
-    res.json({ ok: false, error: e.message });
+
+  if (dbReady) {
+    try {
+      const doc = await db.collection('saves').findOne({ name });
+      if (doc) {
+        res.json({ ok: true, exists: true, data: doc.data });
+      } else {
+        res.json({ ok: true, exists: false });
+      }
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+  } else {
+    // File fallback
+    const DATA_DIR = path.join(__dirname, 'data');
+    const safeName = name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
+    const filePath = path.join(DATA_DIR, `${safeName}.json`);
+    if (!fs.existsSync(filePath)) return res.json({ ok: false, exists: false });
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      res.json({ ok: true, exists: true, data });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
   }
 });
 
@@ -229,6 +285,8 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`🎮 Pixel RPG Server running at http://localhost:${PORT}`);
+initDb().then(() => {
+  server.listen(PORT, () => {
+    console.log(`🎮 Pixel RPG Server running at http://localhost:${PORT}`);
+  });
 });
