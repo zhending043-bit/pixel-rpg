@@ -196,7 +196,15 @@ class Network {
         addBattleLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
         addPvPLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
         // Apply loot loss to defeated player
-        if (msg.lootType === 'mercy') {
+        if (msg.lootType === 'flee') {
+          currentPlayer.pvpWins++;
+          addBattleLog(`🏃 ${msg.winner} 逃跑了！你获得了胜利！`);
+          addPvPLog(`🏃 ${msg.winner} 逃跑了！你获得了胜利！`);
+          document.getElementById('battle-overlay').classList.add('hidden');
+          saveGame();
+          refreshAll();
+          return;
+        } else if (msg.lootType === 'mercy') {
           const lostGold = Math.floor((currentPlayer.gold || 0) / 2);
           currentPlayer.gold -= lostGold;
           addBattleLog(`💰 ${msg.winner} 放过了你，你失去了 ${lostGold} 金币`);

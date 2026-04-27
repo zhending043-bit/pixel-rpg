@@ -937,10 +937,14 @@ function openPvPOverlay(opponentData, isMyTurn) {
   overlay.classList.remove('hidden');
   document.getElementById('battle-e-name').textContent = opponentData.name;
   document.getElementById('battle-result').classList.add('hidden');
-  document.getElementById('battle-actions').classList.add('hidden');
   document.getElementById('reward-overlay').classList.add('hidden');
+  document.getElementById('battle-actions').classList.remove('hidden');
+  document.getElementById('battle-attack-btn').classList.remove('hidden');
+  document.getElementById('battle-attack-btn').textContent = '⚔ 攻击';
   document.getElementById('battle-attack-btn').disabled = !isMyTurn;
   document.getElementById('battle-attack-btn').onclick = pvpBattleAttack;
+  document.getElementById('battle-flee-btn').classList.remove('hidden');
+  document.getElementById('battle-flee-btn').onclick = pvpFleeBattle;
 
   // Set PvP zone background to a neutral one
   document.getElementById('battle-scene').dataset.zone = 0;
@@ -1010,6 +1014,7 @@ function pvpBattleAttack() {
       currentPlayer.pvpWins++;
       document.getElementById('battle-attack-btn').disabled = true;
       document.getElementById('battle-close-btn').style.display = 'none';
+      document.getElementById('battle-flee-btn').classList.add('hidden');
       const resultDiv = document.getElementById('battle-result');
       resultDiv.classList.remove('hidden');
 
@@ -1062,6 +1067,17 @@ function pvpBattleAttack() {
     addBattleLog('⏳ 等待对手攻击...');
     document.getElementById('battle-attack-btn').disabled = true;
   }
+}
+
+function pvpFleeBattle() {
+  if (!currentPvpCombat || currentPvpCombat.finished) return;
+  currentPvpCombat.finished = true;
+  const lostGold = Math.floor(currentPlayer.gold * 0.25);
+  currentPlayer.gold = Math.max(0, currentPlayer.gold - lostGold);
+  addBattleLog(`🏃 从 PvP 逃跑了！损失了 ${lostGold} 金币（25%）`);
+  addPvPLog(`🏃 你从 PvP 逃跑了！损失了 ${lostGold} 金币`);
+  network.sendPvPResult(currentPvpCombat.opponent.name, currentPlayer.name, 'flee', lostGold);
+  finishPvP();
 }
 
 function finishPvP() {
