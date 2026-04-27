@@ -18,6 +18,7 @@
         <p class="sub-title">砍怪 · 爆装备 · PvP</p>
         <input type="text" id="player-name-input" placeholder="输入你的名字" maxlength="10">
         <button id="start-game-btn" class="pixel-btn">开始冒险</button>
+        <div id="login-error" class="hidden"></div>
       </div>
     </div>
 
@@ -25,23 +26,28 @@
     <div id="game-screen" class="screen hidden">
       <!-- Header / Stats -->
       <div id="stats-bar">
-        <div class="stats-row">
-          <span id="stat-name">勇者</span>
-          <span id="stat-level">Lv.1</span>
-          <span id="stat-lives">❤❤❤</span>
-          <span id="stat-hp">HP: 100/100</span>
-        </div>
-        <div class="stats-row">
-          <span id="stat-atk">⚔ ATK: 10</span>
-          <span id="stat-def">🛡 DEF: 5</span>
-          <span id="stat-gold">💰 0</span>
-          <span id="debug-btn" style="cursor:pointer;font-size:6px;color:#333;user-select:none" title="调试">⚙</span>
-        <div class="bar-container">
-          <div class="bar-label">EXP</div>
-          <div class="bar-bg">
-            <div id="exp-bar" class="bar-fill exp-fill" style="width:0%"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <img id="player-avatar" src="sprites/hero.png" alt="avatar">
+          <div style="flex:1">
+            <div class="stats-row">
+              <span id="stat-name">勇者</span>
+              <span id="stat-level">Lv.1</span>
+              <span id="stat-lives">❤❤❤</span>
+              <span id="stat-hp">HP: 100/100</span>
+            </div>
+            <div class="stats-row">
+              <span id="stat-atk">⚔ ATK: 10</span>
+              <span id="stat-def">🛡 DEF: 5</span>
+              <span id="stat-gold">💰 0</span>
+              <button id="help-btn" class="pixel-btn" style="font-size:7px;padding:1px 6px;border-color:#42a5f5;color:#42a5f5">?</button>
+            <div class="bar-container">
+              <div class="bar-label">EXP</div>
+              <div class="bar-bg">
+                <div id="exp-bar" class="bar-fill exp-fill" style="width:0%"></div>
+              </div>
+              <span id="stat-exp-text" class="bar-text">0/50</span>
+            </div>
           </div>
-          <span id="stat-exp-text" class="bar-text">0/50</span>
         </div>
       </div>
 
@@ -161,6 +167,30 @@
             <p id="battle-result-text"></p>
             <button id="battle-close-btn" class="pixel-btn">关闭</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Player Stats Modal -->
+      <div id="stats-modal" class="hidden">
+        <div id="stats-modal-box">
+          <div id="stats-modal-header">
+            <img id="stats-modal-avatar" src="sprites/hero.png" alt="avatar">
+            <div>
+              <div id="stats-modal-name" style="font-size:10px"></div>
+              <div id="stats-modal-level" style="font-size:7px;color:#888"></div>
+            </div>
+          </div>
+          <div id="stats-modal-body"></div>
+          <button id="stats-modal-close" class="pixel-btn" style="margin-top:10px">关闭</button>
+        </div>
+      </div>
+
+      <!-- Help Modal -->
+      <div id="help-modal" class="hidden">
+        <div id="help-modal-box">
+          <div id="help-modal-header">📖 像素勇者 — 玩法说明</div>
+          <div id="help-modal-body"></div>
+          <button id="help-modal-close" class="pixel-btn" style="margin-top:10px">关闭</button>
         </div>
       </div>
     </div>

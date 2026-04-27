@@ -1,4 +1,3 @@
-const CRIT_CHANCE = 0.05;
 const CRIT_MULTIPLIER = 1.8;
 const DAMAGE_VARIANCE = 0.1; // ±10%
 
@@ -8,8 +7,8 @@ function calcDamage(atk, def) {
   return Math.max(1, Math.floor(base * variance));
 }
 
-function isCritical() {
-  return Math.random() < CRIT_CHANCE;
+function isCritical(level) {
+  return Math.random() < Math.min(1, level * 0.01);
 }
 
 class PvECombat {
@@ -39,7 +38,7 @@ class PvECombat {
   playerAttack() {
     if (this.finished) return;
 
-    const crit = isCritical();
+    const crit = isCritical(this.player.level);
     let damage = calcDamage(this.player.atk, this.monster.def);
     if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
 
@@ -62,14 +61,25 @@ class PvECombat {
 
       // Loot (skip for bot battles: zoneIndex < 0)
       let loot = null;
-      const lootChance = this.zoneIndex >= 0 ? 0.4 + (this.monsterLevel * 0.02) : 0;
-      if (Math.random() < lootChance) {
-        const dropSlot = this.monster.dropSlot || null;
-        // Equipment drops at zone's max level for consistent balance
-        const zone = ZONES[this.zoneIndex];
-        const equipLevel = zone ? zone.monsters[zone.monsters.length - 1].level : this.monsterLevel;
-        loot = generateEquipment(equipLevel, this.zoneIndex, dropSlot);
-        this.player.inventory.push(loot);
+
+      // Boss (zone 6) drops red equipment at low chance
+      if (this.zoneIndex === 5) {
+        if (Math.random() < 0.08) {
+          const slotTypes = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
+          const dropSlot = slotTypes[Math.floor(Math.random() * slotTypes.length)];
+          loot = createRedEquipment(30, dropSlot);
+          this.player.inventory.push(loot);
+        }
+      } else {
+        const lootChance = this.zoneIndex >= 0 ? 0.4 + (this.monsterLevel * 0.02) : 0;
+        if (Math.random() < lootChance) {
+          const dropSlot = this.monster.dropSlot || null;
+          // Equipment drops at zone's max level for consistent balance
+          const zone = ZONES[this.zoneIndex];
+          const equipLevel = zone ? zone.monsters[zone.monsters.length - 1].level : this.monsterLevel;
+          loot = generateEquipment(equipLevel, this.zoneIndex, dropSlot);
+          this.player.inventory.push(loot);
+        }
       }
 
       this.onLog(`🏆 击败了 ${this.monster.name}！`);
@@ -88,16 +98,12 @@ class PvECombat {
   monsterAttack() {
     if (this.finished) return;
 
-    const crit = isCritical();
     let damage = calcDamage(this.monster.atk, this.player.def);
-    if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
 
     this.player.hp -= damage;
     this.stats.monsterTotalDmg += damage;
-    if (crit) this.stats.monsterCrits++;
-    this.lastHit = { damage, critical: crit, isPlayer: false };
-    const critText = crit ? '💥 暴击! ' : '';
-    this.onLog(`${critText}${this.monster.name} 对你造成了 ${damage} 点伤害`);
+    this.lastHit = { damage, critical: false, isPlayer: false };
+    this.onLog(`${this.monster.name} 对你造成了 ${damage} 点伤害`);
 
     if (this.player.hp <= 0) {
       this.player.hp = 0;
@@ -136,7 +142,7 @@ class PvPCombat {
   myAttack() {
     if (this.finished || !this.myTurn) return null;
 
-    const crit = isCritical();
+    const crit = isCritical(this.player.level);
     let damage = calcDamage(this.player.atk, this.opponent.def);
     if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
 

@@ -23,6 +23,9 @@ function initUI(player, onSave) {
   document.getElementById('player-name-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startGame();
   });
+  document.getElementById('player-name-input').addEventListener('input', () => {
+    document.getElementById('login-error').classList.add('hidden');
+  });
 
   // Hidden WASD easter egg on login screen
   document.addEventListener('keydown', (e) => {
@@ -66,17 +69,25 @@ function initUI(player, onSave) {
     if (btn) soundClick();
   });
 
-  // Debug button (3 rapid clicks to activate)
-  let debugClicks = 0;
-  let debugTimer = null;
-  document.getElementById('debug-btn').addEventListener('click', () => {
-    debugClicks++;
-    if (debugTimer) clearTimeout(debugTimer);
-    if (debugClicks >= 3) {
-      debugClicks = 0;
-      triggerDebug();
-    } else {
-      debugTimer = setTimeout(() => { debugClicks = 0; }, 500);
+  // Player avatar → stats modal
+  document.getElementById('player-avatar').addEventListener('click', showStatsModal);
+  document.getElementById('stats-modal-close').addEventListener('click', () => {
+    document.getElementById('stats-modal').classList.add('hidden');
+  });
+  document.getElementById('stats-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('stats-modal').classList.add('hidden');
+    }
+  });
+
+  // Help button
+  document.getElementById('help-btn').addEventListener('click', showHelpModal);
+  document.getElementById('help-modal-close').addEventListener('click', () => {
+    document.getElementById('help-modal').classList.add('hidden');
+  });
+  document.getElementById('help-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('help-modal').classList.add('hidden');
     }
   });
 
@@ -89,6 +100,14 @@ function startGame() {
   const name = nameInput.value.trim();
   if (!name) return;
 
+  // Check duplicate name against online players
+  if (network && network.connected && lastNetworkPlayers.some(p => p.name === name)) {
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = `⚠ "${name}" 已存在，请换一个名字`;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
   // Check for save
   const saved = localStorage.getItem('pixel_rpg_save');
   if (saved) {
@@ -96,6 +115,7 @@ function startGame() {
       const data = JSON.parse(saved);
       if (data.name === name) {
         currentPlayer = Player.deserialize(data);
+        document.getElementById('login-error').classList.add('hidden');
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.remove('hidden');
         refreshAll();
@@ -106,6 +126,7 @@ function startGame() {
   }
 
   currentPlayer = new Player(name);
+  document.getElementById('login-error').classList.add('hidden');
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
   refreshAll();
@@ -141,29 +162,155 @@ function renderPvPStats() {
   document.getElementById('pvp-losses').textContent = currentPlayer.pvpLosses || 0;
 }
 
-// ========= Debug =========
-function triggerDebug() {
-  currentPlayer.gold += 10000;
-  currentPlayer.zonesUnlocked = 6;
-  // Level up to 100
-  while (currentPlayer.level < 100) {
-    currentPlayer.levelUp();
-  }
-  currentPlayer.hp = currentPlayer.effectiveMaxHp;
-  // Mark all monsters as defeated for visual
-  ZONES.forEach(zone => {
-    zone.monsters.forEach(m => {
-      if (!currentPlayer.defeatedMonsters.includes(m.name)) {
-        currentPlayer.defeatedMonsters.push(m.name);
-      }
-    });
-  });
-  // Fill looted counts to unlock all zones
-  currentPlayer.lootedCounts = { '普通': 3, '优秀': 3, '稀有': 3, '史诗': 3, '传说': 3 };
-  addBattleLog('⚙ 调试模式已激活：金币+10000，等级100，全部区域解锁');
-  saveAndRefresh();
+// ========= Stats Modal =========
+function showStatsModal() {
+  const p = currentPlayer;
+  const s = p.getStats();
+  const modal = document.getElementById('stats-modal');
+  document.getElementById('stats-modal-name').textContent = p.name;
+  document.getElementById('stats-modal-level').textContent = `Lv.${s.level} 勇者`;
+
+  const body = document.getElementById('stats-modal-body');
+  const expPct = s.maxExp > 0 ? (s.exp / s.maxExp * 100).toFixed(1) : '0.0';
+  const eqCount = [p.weapon, p.armor, p.accessory, p.helmet, p.boots].filter(Boolean).length;
+
+  body.innerHTML = `
+    <div class="stat-row">
+      <span class="stat-label">等级</span>
+      <span class="stat-value">Lv.${s.level}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">经验</span>
+      <span class="stat-value">${s.exp} / ${s.maxExp} (${expPct}%)</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">生命</span>
+      <span class="stat-value hp">${s.hp} / ${s.maxHp}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">攻击</span>
+      <span class="stat-value atk">${s.atk}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">防御</span>
+      <span class="stat-value def">${s.def}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">金币</span>
+      <span class="stat-value gold">${s.gold}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">生命数</span>
+      <span class="stat-value">${'❤'.repeat(p.lives)}${'🖤'.repeat(Math.max(0, p.maxLives - p.lives))}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">装备</span>
+      <span class="stat-value">${eqCount}/5 件</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">PvP 战绩</span>
+      <span class="stat-value">${p.pvpWins}胜 ${p.pvpLosses}负</span>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
 }
 
+// ========= Help Modal =========
+function showHelpModal() {
+  const body = document.getElementById('help-modal-body');
+  body.innerHTML = `\
+<h2>基础属性</h2>
+<ul>
+  <li><b>生命 (HP)</b>：初始 80，每升一级 +10</li>
+  <li><b>攻击 (ATK)</b>：初始 6，每升一级 +2</li>
+  <li><b>防御 (DEF)</b>：初始 3，每升一级 +2</li>
+  <li><b>初始生命数</b>：5 条（商店可花 10000G 购买 +1 条，最多 10 条）</li>
+</ul>
+<h2>经验与等级</h2>
+<ul>
+  <li>每级经验需求 = level × 50 × (1 + level × 0.1)</li>
+  <li>升级时回满血，全属性提升</li>
+</ul>
+<h2>伤害公式</h2>
+<ul>
+  <li>基础伤害 = 攻击力 × 100 / (100 + 防御力)</li>
+  <li>伤害浮动：±10%</li>
+  <li>暴击率 = 等级 × 1%（最高 100%），暴击伤害 ×1.8</li>
+  <li>怪物不会暴击</li>
+</ul>
+<h2>装备系统</h2>
+<h3>5 个装备位</h3>
+<table><tr><th>部位</th><th>主属性</th><th>副属性</th></tr>
+<tr><td>武器</td><td>ATK</td><td>DEF (30%)</td></tr>
+<tr><td>防具</td><td>DEF</td><td>HP (30%)</td></tr>
+<tr><td>头盔</td><td>DEF</td><td>HP (40%)</td></tr>
+<tr><td>饰品</td><td>ATK</td><td>HP (固定)</td></tr>
+<tr><td>靴子</td><td>DEF</td><td>ATK (30%)</td></tr></table>
+<h3>品质与倍率</h3>
+<table><tr><th>品质</th><th>倍率</th><th>颜色</th></tr>
+<tr><td>普通</td><td>1.0×</td><td>灰</td></tr>
+<tr><td>优秀</td><td>1.5×</td><td>绿</td></tr>
+<tr><td>稀有</td><td>2.0×</td><td>蓝</td></tr>
+<tr><td>史诗</td><td>3.0×</td><td>紫</td></tr>
+<tr><td>传说</td><td>5.0×</td><td>橙</td></tr>
+<tr><td>红装</td><td>8.0×</td><td>红</td></tr></table>
+<p>传说品质额外填充未满属性，红装固定全属性。</p>
+<h3>装备回收</h3>
+<ul>
+  <li>背包中每件装备可单独回收，也可一键回收全部</li>
+  <li>回收价格 = (5 + 等级 × 2) × 品质系数</li>
+  <li>品质系数：普通=1, 优秀=3, 稀有=8, 史诗=20, 传说=50, 红装=80</li>
+</ul>
+<h2>区域与怪物</h2>
+<h3>6 个区域（按顺序解锁）</h3>
+<ol>
+  <li>🌿 新手草原（Lv.1+）— 掉落普通</li>
+  <li>🌲 幽暗森林（Lv.4+）— 掉落优秀</li>
+  <li>🏜 灼热沙漠（Lv.8+）— 掉落稀有</li>
+  <li>🏰 亡灵城堡（Lv.14+）— 掉落史诗</li>
+  <li>🔥 深渊（Lv.20+）— 掉落传说</li>
+  <li>👑 魔王之巅（Lv.30）— 最终 Boss</li>
+</ol>
+<h3>区域解锁规则</h3>
+<ul>
+  <li>每个区域 5 只怪物，固定掉落顺序：武器→防具→头盔→饰品→靴子</li>
+  <li>收集 3 件当前区域的特色品质装备即可解锁下一区域</li>
+  <li>平衡规则：穿 N 件本图装备可打赢第 N 只怪</li>
+</ul>
+<h3>最终 Boss — 魔王</h3>
+<ul>
+  <li>HP: 11000 / ATK: 6500 / DEF: 750</li>
+  <li>需要 5 件红装才能击败</li>
+  <li>击败后约 8% 概率掉落随机部位红装</li>
+</ul>
+<h2>商店</h2>
+<ul>
+  <li>出售 5 部位红装（每件 9000/6000/4500G），每件限购 1 次</li>
+  <li>出售生命上限 +1（10000G），限购 5 次</li>
+</ul>
+<h2>PvP 系统</h2>
+<ul>
+  <li>WebSocket 实时联机，在线玩家列表显示</li>
+  <li>可互相挑战，轮流攻击</li>
+  <li>击败对手可选择放走（一半金币）或杀掉（全部金币+装备）</li>
+  <li>逃跑扣 25% 金币</li>
+</ul>
+<h2>Bot 人机</h2>
+<ul>
+  <li>5 个人机 AI，等级 5/10/15/20/25</li>
+  <li>击败后可选择放走或击杀</li>
+  <li>击杀全部 5 人机解锁成就</li>
+</ul>
+<h2>其他</h2>
+<ul>
+  <li>点击左上角头像查看详细属性面板</li>
+  <li>存档保存在浏览器 localStorage</li>
+</ul>`;
+  document.getElementById('help-modal').classList.remove('hidden');
+}
+
+// ========= Debug =========
 // ========= Stats Bar =========
 function updateStats() {
   const s = currentPlayer.getStats();
@@ -183,7 +330,7 @@ function updateStats() {
     livesEl.textContent = '💀';
     livesEl.className = 'dead';
   } else {
-    livesEl.textContent = '❤'.repeat(currentPlayer.lives) + '🖤'.repeat(3 - currentPlayer.lives);
+    livesEl.textContent = '❤'.repeat(currentPlayer.lives) + '🖤'.repeat(Math.max(0, currentPlayer.maxLives - currentPlayer.lives));
     livesEl.className = '';
   }
 }
@@ -376,7 +523,7 @@ function showBattleResult(result) {
     } else {
       soundDefeat();
       document.getElementById('battle-result-text').textContent =
-        `💀 败北...剩余 ${currentPlayer.lives}/3 条命`;
+        `💀 败北...剩余 ${currentPlayer.lives}/${currentPlayer.maxLives} 条命`;
     }
   }
   saveAndRefresh();
@@ -504,7 +651,7 @@ function onPvEEnd(result) {
     if (currentPlayer.lives > 0) {
       // Respawn with full HP
       currentPlayer.hp = currentPlayer.effectiveMaxHp;
-      addBattleLog(`💔 损失一条命！剩余 ${currentPlayer.lives}/3`);
+      addBattleLog(`💔 损失一条命！剩余 ${currentPlayer.lives}/${currentPlayer.maxLives}`);
     } else {
       // Game over
       currentPlayer.hp = 0;
@@ -559,6 +706,21 @@ function closeBattleOverlay() {
 }
 
 // ========= Inventory =========
+function recycleAll() {
+  const inv = currentPlayer.inventory;
+  if (inv.length === 0) return;
+  let total = 0;
+  const names = inv.map(item => {
+    const price = calcSellPrice(item);
+    total += price;
+    return item.name;
+  });
+  currentPlayer.gold += total;
+  currentPlayer.inventory = [];
+  addBattleLog(`♻ 一键回收了 ${names.length} 件装备，获得 💰${total}G`);
+  saveAndRefresh();
+}
+
 function renderInventory() {
   const container = document.getElementById('inventory-list');
   container.innerHTML = '';
@@ -566,6 +728,17 @@ function renderInventory() {
     container.innerHTML = '<div class="empty-hint">背包空空如也，去打怪爆装备吧！</div>';
     return;
   }
+
+  // Recycle all button
+  const topBar = document.createElement('div');
+  topBar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px';
+  const recycleBtn = document.createElement('button');
+  recycleBtn.className = 'pixel-btn small';
+  recycleBtn.style.cssText = 'border-color:#ffd54f;color:#ffd54f';
+  recycleBtn.textContent = `♻ 一键回收 (${currentPlayer.inventory.length}件)`;
+  recycleBtn.addEventListener('click', recycleAll);
+  topBar.appendChild(recycleBtn);
+  container.appendChild(topBar);
 
   currentPlayer.inventory.forEach((item, idx) => {
     const card = document.createElement('div');
@@ -642,33 +815,89 @@ function renderShop() {
   const types = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
   const typeNames = { weapon: '武器', armor: '防具', accessory: '饰品', helmet: '头盔', boots: '靴子' };
 
+  // Init shop tracking
+  if (!currentPlayer.shopBought) currentPlayer.shopBought = [];
+
   types.forEach(type => {
     const item = createRedEquipment(30, type);
     const price = getEquipmentPrice(item);
+    const bought = currentPlayer.shopBought.includes(type);
 
     const card = document.createElement('div');
     card.className = 'shop-card';
-    card.innerHTML = `
-      <div class="item-name" style="color:#ff1744">${item.name}</div>
-      <div class="item-type">${typeNames[type]} Lv.${item.level}</div>
-      <div class="item-stats">${getEquipmentStatsText(item)}</div>
-      <span class="shop-price">💰 ${price}G</span>
-      <button class="pixel-btn small" style="border-color:#ff1744">购买</button>
-    `;
-
-    card.querySelector('button').addEventListener('click', () => {
-      if (currentPlayer.gold < price) {
-        addBattleLog(`💰 金币不够！需要 ${price}G`);
-        return;
-      }
-      currentPlayer.gold -= price;
-      currentPlayer.inventory.push(item);
-      addBattleLog(`🛒 购买了 ${item.name}（${price}G）`);
-      saveAndRefresh();
-    });
+    if (bought) {
+      card.innerHTML = `
+        <div class="item-name" style="color:#555">${item.name}</div>
+        <div class="item-type">${typeNames[type]} Lv.${item.level}</div>
+        <div class="item-stats" style="color:#555">${getEquipmentStatsText(item)}</div>
+        <span style="color:#888;font-size:7px">已售罄</span>
+        <button class="pixel-btn small" style="border-color:#555;color:#555" disabled>已购买</button>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="item-name" style="color:#ff1744">${item.name}</div>
+        <div class="item-type">${typeNames[type]} Lv.${item.level}</div>
+        <div class="item-stats">${getEquipmentStatsText(item)}</div>
+        <span class="shop-price">💰 ${price}G</span>
+        <button class="pixel-btn small" style="border-color:#ff1744">购买</button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        if (currentPlayer.gold < price) {
+          const goldEl = document.getElementById('stat-gold');
+          goldEl.classList.remove('gold-flash');
+          void goldEl.offsetWidth;
+          goldEl.classList.add('gold-flash');
+          addBattleLog(`💰 金币不够！还需要 ${price - currentPlayer.gold}G`);
+          return;
+        }
+        currentPlayer.gold -= price;
+        currentPlayer.inventory.push(item);
+        currentPlayer.shopBought.push(type);
+        addBattleLog(`🛒 购买了 ${item.name}（${price}G）`);
+        saveAndRefresh();
+      });
+    }
 
     container.appendChild(card);
   });
+
+  // Life upgrade card (buy 1 life at a time, max 5 purchases)
+  const lifeBought = currentPlayer.shopBought.filter(s => s.startsWith('life_')).length;
+  const canBuy = lifeBought < 5 && currentPlayer.maxLives < 10;
+  const lifeCard = document.createElement('div');
+  lifeCard.className = 'shop-card';
+  if (!canBuy) {
+    lifeCard.innerHTML = `
+      <div class="item-name" style="color:#555">❤ 生命上限提升</div>
+      <div class="item-type">${currentPlayer.maxLives} / 10 条命</div>
+      <span style="color:#888;font-size:7px">已达上限</span>
+      <button class="pixel-btn small" style="border-color:#555;color:#555" disabled>已满</button>
+    `;
+  } else {
+    lifeCard.innerHTML = `
+      <div class="item-name" style="color:#4caf50">❤ 生命 +1</div>
+      <div class="item-type">剩余 ${5 - lifeBought} 次</div>
+      <span class="shop-price">💰 10000G</span>
+      <button class="pixel-btn small" style="border-color:#4caf50;color:#4caf50">购买</button>
+    `;
+    lifeCard.querySelector('button').addEventListener('click', () => {
+      if (currentPlayer.gold < 10000) {
+        const goldEl = document.getElementById('stat-gold');
+        goldEl.classList.remove('gold-flash');
+        void goldEl.offsetWidth;
+        goldEl.classList.add('gold-flash');
+        addBattleLog(`💰 金币不够！还需要 ${10000 - currentPlayer.gold}G`);
+        return;
+      }
+      currentPlayer.gold -= 10000;
+      currentPlayer.maxLives++;
+      currentPlayer.lives++;
+      currentPlayer.shopBought.push('life_' + lifeBought);
+      addBattleLog(`🛒 生命上限 +1！当前 ${currentPlayer.maxLives}/10`);
+      saveAndRefresh();
+    });
+  }
+  container.appendChild(lifeCard);
 }
 
 // ========= Tabs =========
@@ -732,7 +961,7 @@ function onBotEnd(result) {
     currentPlayer.lives--;
     if (currentPlayer.lives > 0) {
       currentPlayer.hp = currentPlayer.effectiveMaxHp;
-      addBattleLog(`💔 被 ${currentBot.name} 击败了！剩余 ${currentPlayer.lives}/3 条命`);
+      addBattleLog(`💔 被 ${currentBot.name} 击败了！剩余 ${currentPlayer.lives}/${currentPlayer.maxLives} 条命`);
     } else {
       currentPlayer.hp = 0;
       addBattleLog('💀 游戏结束！');

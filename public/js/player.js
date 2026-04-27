@@ -2,10 +2,10 @@ class Player {
   constructor(name) {
     this.name = name;
     this.level = 1;
-    this.hp = 120;
-    this.maxHp = 120;
-    this.baseAtk = 10;
-    this.baseDef = 5;
+    this.hp = 80;
+    this.maxHp = 80;
+    this.baseAtk = 6;
+    this.baseDef = 3;
     this.exp = 0;
     this.gold = 0;
     this.weapon = null;
@@ -18,7 +18,9 @@ class Player {
     this.defeatedMonsters = []; // Track monster names defeated for zone progression
     this.encounteredMonsters = []; // Track monster names encountered for auto-attack
     this.lootedCounts = { '普通': 0, '优秀': 0, '稀有': 0, '史诗': 0, '传说': 0 };
-    this.lives = 3;
+    this.shopBought = [];
+    this.lives = 5;
+    this.maxLives = 5; // base, can be increased to 10 via shop
     this.pvpWins = 0;
     this.pvpLosses = 0;
   }
@@ -151,7 +153,9 @@ class Player {
       defeatedMonsters: this.defeatedMonsters,
       encounteredMonsters: this.encounteredMonsters,
       lootedCounts: this.lootedCounts,
+      shopBought: this.shopBought,
       lives: this.lives,
+      maxLives: this.maxLives,
       pvpWins: this.pvpWins,
       pvpLosses: this.pvpLosses,
     };
@@ -177,7 +181,9 @@ class Player {
     p.defeatedMonsters = data.defeatedMonsters || [];
     p.encounteredMonsters = data.encounteredMonsters || [];
     p.lootedCounts = data.lootedCounts || { '普通': 0, '优秀': 0, '稀有': 0, '史诗': 0, '传说': 0 };
-    p.lives = data.lives !== undefined ? data.lives : 3;
+    p.shopBought = data.shopBought || [];
+    p.lives = data.lives !== undefined ? data.lives : 5;
+    p.maxLives = data.maxLives !== undefined ? data.maxLives : 5;
     p.pvpWins = data.pvpWins || 0;
     p.pvpLosses = data.pvpLosses || 0;
     return p;

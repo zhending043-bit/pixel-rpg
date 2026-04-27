@@ -76,6 +76,8 @@ wss.on('connection', (ws) => {
         const targetName = msg.target;
         for (const [targetWs, info] of onlinePlayers) {
           if (info.name === targetName && targetWs !== ws) {
+            // Store challenger's current data for battle start
+            if (msg.playerData) info.pendingChallengeData = msg.playerData;
             targetWs.send(JSON.stringify({
               type: 'challenged',
               from: ws.playerName,
@@ -93,9 +95,9 @@ wss.on('connection', (ws) => {
         for (const [challengerWs, info] of onlinePlayers) {
           if (info.name === challengerName && challengerWs !== ws) {
             if (msg.accept) {
-              // Start battle - exchange player data
-              const defenderData = onlinePlayers.get(ws).playerData;
-              const challengerData = info.playerData;
+              // Start battle - exchange player data (use fresh data from messages)
+              const defenderData = msg.playerData || onlinePlayers.get(ws).playerData;
+              const challengerData = info.pendingChallengeData || info.playerData;
 
               // Track active PvP battle for disconnect handling
               activePvPBattles.set(challengerWs, ws);
@@ -112,6 +114,8 @@ wss.on('connection', (ws) => {
                 opponent: challengerData,
                 attacker: challengerName,
               }));
+
+              delete info.pendingChallengeData;
             } else {
               ws.send(JSON.stringify({
                 type: 'challenge_declined',

@@ -89,7 +89,8 @@ function generateEquipment(monsterLevel, zoneLevel = 0, forceType = null) {
   const baseName = pickRandom(namePool);
   const name = `${prefix}${baseName}`;
 
-  const mainValue = Math.floor((5 + monsterLevel * 3) * rarity.multiplier);
+  const mainValue = Math.floor((10 + monsterLevel * 4) * rarity.multiplier);
+  const hpValue = Math.floor((8 + monsterLevel * 2) * rarity.multiplier);
   const item = {
     name,
     type,
@@ -98,20 +99,19 @@ function generateEquipment(monsterLevel, zoneLevel = 0, forceType = null) {
     level: monsterLevel,
     atk: 0,
     def: 0,
-    hp: 0,
+    hp: hpValue,
   };
 
   item[mainStat] = mainValue;
   if (subStat) {
-    const subValue = Math.floor((2 + monsterLevel * 1.5) * rarity.multiplier);
+    const subValue = Math.floor((4 + monsterLevel * 2) * rarity.multiplier);
     item[subStat] = subValue;
   }
 
   // Legendary gets all stats
   if (rarity.name === '传说') {
-    if (!item.atk) item.atk = Math.floor((5 + monsterLevel * 2) * rarity.multiplier);
-    if (!item.def) item.def = Math.floor((5 + monsterLevel * 2) * rarity.multiplier);
-    if (!item.hp) item.hp = Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
+    if (!item.atk) item.atk = Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
+    if (!item.def) item.def = Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
   }
 
   return item;
@@ -162,8 +162,8 @@ function createRedEquipment(monsterLevel, type) {
   const baseName = pickRandom(namePool);
   const name = `${prefix}${baseName}`;
 
-  const mainValue = Math.floor((5 + monsterLevel * 3) * rarity.multiplier);
-  const subValue = Math.floor((2 + monsterLevel * 1.5) * rarity.multiplier);
+  const mainValue = Math.floor((10 + monsterLevel * 4) * rarity.multiplier);
+  const hpValue = Math.floor((8 + monsterLevel * 2) * rarity.multiplier);
 
   const item = {
     name,
@@ -173,16 +173,18 @@ function createRedEquipment(monsterLevel, type) {
     level: monsterLevel,
     atk: 0,
     def: 0,
-    hp: 0,
+    hp: hpValue,
   };
 
   item[mainStat] = mainValue;
-  if (subStat) item[subStat] = subValue;
+  if (subStat) {
+    const subValue = Math.floor((4 + monsterLevel * 2) * rarity.multiplier);
+    item[subStat] = subValue;
+  }
 
   // Red gets all stats
-  item.atk = item.atk || Math.floor((5 + monsterLevel * 2) * rarity.multiplier);
-  item.def = item.def || Math.floor((5 + monsterLevel * 2) * rarity.multiplier);
-  item.hp = item.hp || Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
+  item.atk = item.atk || Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
+  item.def = item.def || Math.floor((10 + monsterLevel * 3) * rarity.multiplier);
 
   return item;
 }

@@ -19,9 +19,9 @@ function generateBots() {
 function createBot(level, nameIdx) {
   const baseName = BOT_BASE_NAMES[nameIdx] || '流浪武者';
 
-  const baseHp = 120 + (level - 1) * 10;
-  const baseAtk = 10 + (level - 1) * 2;
-  const baseDef = 5 + (level - 1) * 2;
+  const baseHp = 80 + (level - 1) * 10;
+  const baseAtk = 6 + (level - 1) * 2;
+  const baseDef = 3 + (level - 1) * 2;
 
   const zoneLevel = Math.min(4, Math.floor(level / 5));
 

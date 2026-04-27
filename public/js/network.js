@@ -62,7 +62,11 @@ class Network {
       addPvPLog('⚠ 未连接到服务器');
       return;
     }
-    this.ws.send(JSON.stringify({ type: 'challenge', target: targetName }));
+    this.ws.send(JSON.stringify({
+      type: 'challenge',
+      target: targetName,
+      playerData: this.player.serialize(),
+    }));
     addPvPLog(`⏳ 已向 ${targetName} 发起挑战，等待回应...`);
   }
 
@@ -72,6 +76,7 @@ class Network {
       type: 'challenge_response',
       target: from,
       accept: true,
+      playerData: this.player.serialize(),
     }));
   }
 
@@ -221,6 +226,7 @@ class Network {
           currentPlayer.boots = null;
           currentPlayer.inventory = [];
           currentPlayer.lives--;
+          soundKill();
           if (currentPlayer.lives > 0) {
             currentPlayer.hp = currentPlayer.effectiveMaxHp;
             addBattleLog(`💀 ${msg.winner} 杀了你，损失全部身家！剩余 ${currentPlayer.lives}/3 条命`);
