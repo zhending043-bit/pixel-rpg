@@ -17,6 +17,33 @@ function saveGame(player) {
   }
 }
 
+// Auto-save every 30 seconds when game is active
+let autosaveTimer = null;
+function startAutosave() {
+  stopAutosave();
+  autosaveTimer = setInterval(() => {
+    // currentPlayer is declared in ui.js (same global scope)
+    if (typeof currentPlayer !== 'undefined' && currentPlayer) {
+      saveGame(currentPlayer);
+    }
+  }, 30000);
+}
+function stopAutosave() {
+  if (autosaveTimer) {
+    clearInterval(autosaveTimer);
+    autosaveTimer = null;
+  }
+}
+
+// Save on page close/refresh
+window.addEventListener('beforeunload', () => {
+  if (typeof currentPlayer !== 'undefined' && currentPlayer) {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(currentPlayer.serialize()));
+    } catch (e) { /* ignore */ }
+  }
+});
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   // Pre-fill name from save

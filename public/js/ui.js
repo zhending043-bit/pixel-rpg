@@ -127,6 +127,7 @@ function startGame() {
     saveGame();
     if (network) network.login(currentPlayer);
     startBGM();
+    startAutosave();
   }
 
   // 1) Try localStorage
