@@ -217,6 +217,10 @@ function showStatsModal() {
         ${p.passiveLifesteal ? '🩸吸血 ' : ''}${p.passiveCombo ? '💫连击' : ''}
       </span>
     </div>
+    <div class="stat-row">
+      <span class="stat-label">幸运</span>
+      <span class="stat-value" style="color:#ff9800">Lv.${p.luck} (0.1%触发 10倍伤害)</span>
+    </div>
   `;
 
   modal.classList.remove('hidden');
@@ -457,7 +461,7 @@ async function runAutoCombat() {
     } else {
       soundPlayerAttack();
     }
-    flashSprite('battle-p-sprite', currentCombat.lastHit.critical);
+    flashSprite('battle-p-sprite', currentCombat.lastHit.critical, currentCombat.lastHit.lucky);
 
     // Combo — delayed second flash + sound
     if (currentCombat.lastHit.combo) {
@@ -486,7 +490,7 @@ async function runAutoCombat() {
     } else {
       soundMonsterAttack();
     }
-    flashSprite('battle-e-sprite', currentCombat.lastHit.critical);
+    flashSprite('battle-e-sprite', currentCombat.lastHit.critical, false);
     updateBattleUI();
     updateCombatPanel();
 
@@ -636,15 +640,18 @@ function updateCombatPanel() {
   document.getElementById('combat-e-def').textContent = `🛡 ${m.def}`;
 }
 
-function flashSprite(spriteId, critical) {
+function flashSprite(spriteId, critical, lucky) {
   const el = document.getElementById(spriteId);
   if (!el) return;
   el.className = 'battle-sprite'; // reset
   void el.offsetWidth;
-  el.className = `battle-sprite ${critical ? 'sprite-flash-crit' : 'sprite-flash-attack'}`;
+  let cls = 'battle-sprite sprite-flash-attack';
+  if (lucky) cls = 'battle-sprite sprite-flash-lucky';
+  else if (critical) cls = 'battle-sprite sprite-flash-crit';
+  el.className = cls;
   setTimeout(() => {
     el.className = 'battle-sprite';
-  }, critical ? 500 : 300);
+  }, lucky ? 700 : (critical ? 500 : 300));
 }
 
 function updateBattleSkillCd() {
@@ -1336,8 +1343,10 @@ function pvpBattleAttack() {
 
   if (result) {
     // Flash effect on opponent sprite
-    flashSprite('battle-e-sprite', result.critical);
-    if (result.critical) {
+    flashSprite('battle-e-sprite', result.critical, result.lucky);
+    if (result.lucky) {
+      soundVictory();
+    } else if (result.critical) {
       soundCriticalHit();
     } else {
       soundPlayerAttack();

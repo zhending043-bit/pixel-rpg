@@ -1,4 +1,5 @@
 const CRIT_MULTIPLIER = 1.8;
+const LUCK_MULTIPLIER = 10;
 const DAMAGE_VARIANCE = 0.1; // ±10%
 
 function calcDamage(atk, def) {
@@ -9,6 +10,10 @@ function calcDamage(atk, def) {
 
 function isCritical(level) {
   return Math.random() < Math.min(1, level * 0.01);
+}
+
+function isLuckyCrit(luck) {
+  return Math.random() < 0.001; // 0.1%
 }
 
 class PvECombat {
@@ -42,16 +47,22 @@ class PvECombat {
     this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
     this.player.comboCd = Math.max(0, this.player.comboCd - 1);
 
-    const crit = isCritical(this.player.level);
+    let crit = isCritical(this.player.level);
+    const lucky = isLuckyCrit(this.player.luck);
     let damage = calcDamage(this.player.atk, this.monster.def);
-    if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
+    if (lucky) {
+      damage = Math.floor(damage * LUCK_MULTIPLIER);
+      crit = true;
+    } else if (crit) {
+      damage = Math.floor(damage * CRIT_MULTIPLIER);
+    }
 
     this.monster.hp -= damage;
     this.stats.round++;
     this.stats.playerTotalDmg += damage;
     if (crit) this.stats.playerCrits++;
-    this.lastHit = { damage, critical: crit, isPlayer: true };
-    const critText = crit ? '💥 暴击! ' : '';
+    this.lastHit = { damage, critical: crit, lucky, isPlayer: true };
+    const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
     this.onLog(`${critText}造成伤害${damage}`);
 
     // Lifesteal
@@ -172,12 +183,18 @@ class PvPCombat {
     this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
     this.player.comboCd = Math.max(0, this.player.comboCd - 1);
 
-    const crit = isCritical(this.player.level);
+    let crit = isCritical(this.player.level);
+    const lucky = isLuckyCrit(this.player.luck);
     let damage = calcDamage(this.player.atk, this.opponent.def);
-    if (crit) damage = Math.floor(damage * CRIT_MULTIPLIER);
+    if (lucky) {
+      damage = Math.floor(damage * LUCK_MULTIPLIER);
+      crit = true;
+    } else if (crit) {
+      damage = Math.floor(damage * CRIT_MULTIPLIER);
+    }
 
     this.opponent.hp -= damage;
-    const critText = crit ? '💥 暴击! ' : '';
+    const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
     this.onLog(`${critText}造成伤害${damage}`);
 
     // Lifesteal
@@ -205,11 +222,11 @@ class PvPCombat {
       this.opponent.hp = 0;
       this.finished = true;
       this.onLog(`🏆 你击败了 ${this.opponent.name}！`);
-      return { won: true, damage, critical: crit, comboDamage, comboCritical };
+      return { won: true, damage, critical: crit, lucky, comboDamage, comboCritical };
     }
 
     this.myTurn = false;
-    return { won: null, damage, critical: crit, comboDamage, comboCritical };
+    return { won: null, damage, critical: crit, lucky, comboDamage, comboCritical };
   }
 
   opponentAttack(damage, critical, comboDamage = 0) {

@@ -29,6 +29,7 @@ class Player {
     this.comboCd = 0;
     this.lifestealCdMax = 3;
     this.comboCdMax = 4;
+    this.luck = 1;
   }
 
   get maxExp() {
@@ -170,6 +171,7 @@ class Player {
       comboCd: this.comboCd,
       lifestealCdMax: this.lifestealCdMax,
       comboCdMax: this.comboCdMax,
+      luck: this.luck,
     };
   }
 
@@ -204,6 +206,7 @@ class Player {
     p.comboCd = data.comboCd || 0;
     p.lifestealCdMax = data.lifestealCdMax || 3;
     p.comboCdMax = data.comboCdMax || 4;
+    p.luck = data.luck !== undefined ? data.luck : 1;
     return p;
   }
 }
