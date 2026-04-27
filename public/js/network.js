@@ -212,16 +212,24 @@ class Network {
           currentPlayer.helmet = null;
           currentPlayer.boots = null;
           currentPlayer.inventory = [];
-          addBattleLog(`💀 ${msg.winner} 杀了你，抢走了你所有的金币和 ${itemCount} 件装备！`);
+          currentPlayer.lives--;
+          if (currentPlayer.lives > 0) {
+            currentPlayer.hp = currentPlayer.effectiveMaxHp;
+            addBattleLog(`💀 ${msg.winner} 杀了你，损失全部身家！剩余 ${currentPlayer.lives}/3 条命`);
+          } else {
+            currentPlayer.hp = 0;
+            addBattleLog(`💀 ${msg.winner} 杀了你，游戏结束！你已经没有命了...`);
+          }
         }
         // Update defeat text if battle overlay is still showing
         const resultDiv = document.getElementById('battle-result');
         if (!resultDiv.classList.contains('hidden')) {
+          const livesLeft = currentPlayer.lives;
           for (const child of resultDiv.children) {
             if (child.id === 'battle-close-btn' || child.id === 'pvp-mercy-kill-div') continue;
             if (child.tagName === 'P' || child.id === 'battle-result-text') {
               child.textContent = msg.lootType === 'kill'
-                ? `💀 被 ${msg.winner} 击杀，损失全部金币和装备！`
+                ? `💀 被 ${msg.winner} 击杀！损失全部身家${livesLeft > 0 ? `，剩余 ${livesLeft}/3 条命` : '，游戏结束！'}`
                 : `😅 ${msg.winner} 放过了你，损失了一半金币`;
             }
           }
