@@ -17,6 +17,29 @@
         <h1 class="game-title">像素勇者</h1>
         <p class="sub-title">砍怪 · 爆装备 · PvP</p>
         <input type="text" id="player-name-input" placeholder="输入你的名字" maxlength="10">
+        <div class="class-select">
+          <div class="class-option selected" data-class="战士">
+            <div class="class-icon">⚔</div>
+            <div class="class-info">
+              <div class="class-name">战士</div>
+              <div class="class-desc">均衡 · 吸血+连击</div>
+            </div>
+          </div>
+          <div class="class-option" data-class="精灵射手">
+            <div class="class-icon">🏹</div>
+            <div class="class-info">
+              <div class="class-name">精灵射手</div>
+              <div class="class-desc">暴击 · 暴伤2.5倍</div>
+            </div>
+          </div>
+          <div class="class-option" data-class="魔女">
+            <div class="class-icon">🔮</div>
+            <div class="class-info">
+              <div class="class-name">魔女</div>
+              <div class="class-desc">爆发 · 每4回3倍伤害</div>
+            </div>
+          </div>
+        </div>
         <button id="start-game-btn" class="pixel-btn">开始冒险</button>
         <div id="login-error" class="hidden"></div>
       </div>
@@ -88,7 +111,6 @@
       <!-- Tab Content: Shop -->
       <div id="tab-shop" class="tab-content">
         <h3>🏪 装备商店 — 红装</h3>
-        <div id="shop-notice" style="font-size:7px;color:#888;margin-bottom:8px">只有红装才能挑战魔王！</div>
         <div id="shop-list"></div>
       </div>
 
@@ -215,8 +237,8 @@
   <script src="js/player.js"></script>
   <script src="js/equipment.js"></script>
   <script src="js/monster.js"></script>
-  <script src="js/combat.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/combat.js"></script>
   <script src="js/bots.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/network.js"></script>

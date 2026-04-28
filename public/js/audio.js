@@ -84,6 +84,17 @@ function soundFlee() {
   setTimeout(() => playTone(600, 0.12, 'square', 0.08), 160);
 }
 
+function soundManaBurst() {
+  // Magical rising arpeggio for 魔力爆发
+  const notes = [400, 520, 660, 880, 1040];
+  notes.forEach((f, i) => {
+    setTimeout(() => playTone(f, 0.12, 'sine', 0.12), i * 60);
+  });
+  // Power burst at the end
+  setTimeout(() => playNoise(0.15, 0.10), 300);
+  setTimeout(() => playTone(1200, 0.15, 'sine', 0.08), 320);
+}
+
 function soundGameOver() {
   playTone(200, 0.3, 'square', 0.12);
   setTimeout(() => playTone(150, 0.3, 'square', 0.10), 300);

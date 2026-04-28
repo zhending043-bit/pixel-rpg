@@ -23,6 +23,14 @@ function initUI(player, onSave) {
   document.getElementById('player-name-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startGame();
   });
+
+  // Class selection
+  document.querySelectorAll('.class-option').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.class-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
   document.getElementById('player-name-input').addEventListener('input', () => {
     document.getElementById('login-error').classList.add('hidden');
   });
@@ -100,6 +108,10 @@ function startGame() {
   const name = nameInput.value.trim();
   if (!name) return;
 
+  // Get selected class
+  const selectedClass = document.querySelector('.class-option.selected');
+  const classType = selectedClass ? selectedClass.dataset.class : '战士';
+
   // Disable button to prevent double-click during async server fetch
   const startBtn = document.getElementById('start-game-btn');
   startBtn.disabled = true;
@@ -118,11 +130,14 @@ function startGame() {
     if (data) {
       currentPlayer = Player.deserialize(data);
     } else {
-      currentPlayer = new Player(name);
+      currentPlayer = new Player(name, classType);
     }
     errEl.classList.add('hidden');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
+    // Update avatar sprite based on class
+    const avatarImg = document.getElementById('player-avatar');
+    if (currentPlayer.sprite) avatarImg.src = `sprites/${currentPlayer.sprite}.png`;
     refreshAll();
     saveGame();
     if (network) network.login(currentPlayer);
@@ -195,7 +210,9 @@ function showStatsModal() {
   const s = p.getStats();
   const modal = document.getElementById('stats-modal');
   document.getElementById('stats-modal-name').textContent = p.name;
-  document.getElementById('stats-modal-level').textContent = `Lv.${s.level} 勇者`;
+  document.getElementById('stats-modal-level').textContent = `Lv.${s.level} · ${p.classType || '勇者'}`;
+  // Set class-specific avatar
+  document.getElementById('stats-modal-avatar').src = `sprites/${(p.sprite || 'hero')}.png`;
 
   const body = document.getElementById('stats-modal-body');
   const expPct = s.maxExp > 0 ? (s.exp / s.maxExp * 100).toFixed(1) : '0.0';
@@ -228,7 +245,7 @@ function showStatsModal() {
     </div>
     <div class="stat-row">
       <span class="stat-label">生命数</span>
-      <span class="stat-value">${'❤'.repeat(p.lives)}${'🖤'.repeat(Math.max(0, p.maxLives - p.lives))}</span>
+      <span class="stat-value">❤ ${p.lives} / ${p.maxLives}</span>
     </div>
     <div class="stat-row">
       <span class="stat-label">装备</span>
@@ -239,14 +256,38 @@ function showStatsModal() {
       <span class="stat-value">${p.pvpWins}胜 ${p.pvpLosses}负</span>
     </div>
     <div class="stat-row">
+      <span class="stat-label">职业</span>
+      <span class="stat-value" style="color:#ff9800">${p.classType || '战士'}</span>
+    </div>
+    <div class="stat-row">
       <span class="stat-label">被动技能</span>
       <span class="stat-value" style="font-size:7px;color:#4caf50">
-        ${p.passiveLifesteal ? '🩸吸血 ' : ''}${p.passiveCombo ? '💫连击' : ''}
+        ${p.passiveLifesteal ? '🩸吸血 ' : ''}${p.passiveCombo ? '💫连击 ' : ''}${p.passivePrecision ? '🎯精准 ' : ''}${p.passiveBurst ? '🔮魔力爆发 ' : ''}
       </span>
     </div>
+    ${p.passiveBurst ? `<div class="stat-row">
+      <span class="stat-label">魔力爆发</span>
+      <span class="stat-value" style="font-size:6px;color:#ce93d8">每4回合一次，造成3倍伤害</span>
+    </div>` : ''}
+    ${p.passivePrecision ? `<div class="stat-row">
+      <span class="stat-label">精准射击</span>
+      <span class="stat-value" style="font-size:6px;color:#81d4fa">暴击率+10%，暴击伤害2.5倍</span>
+    </div>` : ''}
+    ${p.passiveLifesteal ? `<div class="stat-row">
+      <span class="stat-label">吸血</span>
+      <span class="stat-value" style="font-size:6px;color:#a5d6a7">造成伤害的15%恢复生命（3回合CD）</span>
+    </div>` : ''}
+    ${p.passiveCombo ? `<div class="stat-row">
+      <span class="stat-label">连击</span>
+      <span class="stat-value" style="font-size:6px;color:#a5d6a7">18%概率触发60%伤害的二次攻击（4回合CD）</span>
+    </div>` : ''}
     <div class="stat-row">
       <span class="stat-label">幸运</span>
       <span class="stat-value" style="color:#ff9800">Lv.${p.luck} (0.1%触发 10倍伤害)</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">训练加成</span>
+      <span class="stat-value" style="color:#4caf50">⚔+${p.trainedAtk||0} 🛡+${p.trainedDef||0} ❤+${p.trainedHp||0}</span>
     </div>
   `;
 
@@ -262,7 +303,23 @@ function showHelpModal() {
   <li><b>生命 (HP)</b>：初始 80，每升一级 +10</li>
   <li><b>攻击 (ATK)</b>：初始 6，每升一级 +2</li>
   <li><b>防御 (DEF)</b>：初始 3，每升一级 +2</li>
-  <li><b>初始生命数</b>：5 条（商店可花 10000G 购买 +1 条，最多 10 条）</li>
+  <li><b>初始生命数</b>：5 条（商店可花 10000G 购买 +1 条，不限制购买次数）</li>
+</ul>
+<h2>职业系统</h2>
+<h3>⚔ 战士（默认）</h3>
+<ul>
+  <li>均衡型，标准属性</li>
+  <li>被动：🩸 吸血（15%治疗，3回合CD）+ 💫 连击（60%伤害，4回合CD）</li>
+</ul>
+<h3>🏹 精灵射手</h3>
+<ul>
+  <li>暴击型，ATK+1 DEF-1</li>
+  <li>被动：🎯 精准 — 暴击率 +10%，暴击伤害 2.5 倍</li>
+</ul>
+<h3>🔮 魔女</h3>
+<ul>
+  <li>爆发型，ATK+2 DEF-2 HP-10</li>
+  <li>被动：🔮 魔力爆发 — 每 4 回合一次 3 倍伤害</li>
 </ul>
 <h2>经验与等级</h2>
 <ul>
@@ -323,8 +380,9 @@ function showHelpModal() {
 </ul>
 <h2>商店</h2>
 <ul>
-  <li>出售 5 部位红装（每件 9000/6000/4500G），每件限购 1 次</li>
-  <li>出售生命上限 +1（10000G），限购 5 次</li>
+  <li>出售 5 部位红装（武器 20000G / 防具&头盔 15000G / 饰品&靴子 12000G），每件限购 1 次</li>
+  <li>出售生命上限 +1（10000G），不限制购买次数</li>
+  <li>🏋️ 属性训练：永久提升 ATK/DEF/HP，价格递增，每项最多 100 次，PvP 也生效</li>
 </ul>
 <h2>PvP 系统</h2>
 <ul>
@@ -348,6 +406,13 @@ function showHelpModal() {
 <ul>
   <li>点击左上角头像查看详细属性面板</li>
   <li>存档保存在云端和本地</li>
+</ul>
+<h2>🏋️ 属性训练（商店）</h2>
+<ul>
+  <li>使用金币永久提升 ATK / DEF / HP</li>
+  <li>训练属性在 PvP 和 PvE 中均生效</li>
+  <li>每次训练价格递增，每项最多训练 100 次</li>
+  <li>推荐优先训练 ATK 和 DEF 以应对高难度区域</li>
 </ul>`;
   document.getElementById('help-modal').classList.remove('hidden');
 }
@@ -371,7 +436,9 @@ function updateStats() {
     livesEl.textContent = '💀';
     livesEl.className = 'dead';
   } else {
-    livesEl.textContent = '❤'.repeat(currentPlayer.lives) + '🖤'.repeat(Math.max(0, currentPlayer.maxLives - currentPlayer.lives));
+    const hearts = '❤'.repeat(Math.min(currentPlayer.lives, 10));
+    const extra = currentPlayer.lives > 10 ? `×${currentPlayer.lives}` : '';
+    livesEl.textContent = hearts + extra;
     livesEl.className = '';
   }
 }
@@ -635,7 +702,7 @@ function openBattleOverlay(enemyName) {
   const eSprite = document.getElementById('battle-e-sprite');
   pSprite.style.display = '';
   eSprite.style.display = '';
-  pSprite.src = 'sprites/hero.png';
+  pSprite.src = `sprites/${(currentPlayer.sprite || 'hero')}.png`;
   pSprite.onerror = () => { pSprite.style.display = 'none'; };
   if (currentBot) {
     // Bot enemies use hero sprite too
@@ -685,11 +752,25 @@ function updateBattleSkillCd() {
   const el = document.getElementById('battle-p-cd');
   if (!el) return;
   const p = currentPlayer;
-  const lsTxt = p.lifestealCd === 0 ? '已就绪' : `将在${p.lifestealCd}回合后发动`;
-  const coTxt = p.comboCd === 0 ? '已就绪' : `将在${p.comboCd}回合后发动`;
-  el.innerHTML =
-    `<div class="skill-cd ${p.lifestealCd === 0 ? 'ready' : 'cd'}">吸血 🩸 ${lsTxt}</div>` +
-    `<div class="skill-cd ${p.comboCd === 0 ? 'ready' : 'cd'}">连击 💫 ${coTxt}</div>`;
+  let html = '';
+
+  if (p.passiveLifesteal) {
+    const txt = p.lifestealCd === 0 ? '已就绪' : `将在${p.lifestealCd}回合后发动`;
+    html += `<div class="skill-cd ${p.lifestealCd === 0 ? 'ready' : 'cd'}">吸血 🩸 ${txt}</div>`;
+  }
+  if (p.passiveCombo) {
+    const txt = p.comboCd === 0 ? '已就绪' : `将在${p.comboCd}回合后发动`;
+    html += `<div class="skill-cd ${p.comboCd === 0 ? 'ready' : 'cd'}">连击 💫 ${txt}</div>`;
+  }
+  if (p.passivePrecision) {
+    html += `<div class="skill-cd ready">🎯 精准：暴击+10% 暴伤2.5倍</div>`;
+  }
+  if (p.passiveBurst) {
+    const txt = p.burstCd === 0 ? '⚡已就绪' : `蓄力中 ${p.burstCd}回合`;
+    html += `<div class="skill-cd ${p.burstCd === 0 ? 'ready' : 'cd'}">🔮 魔力爆发 ${txt}</div>`;
+  }
+  if (!html) html = '<div class="skill-cd" style="color:#888">无被动技能</div>';
+  el.innerHTML = html;
 }
 
 function updateBattleUI() {
@@ -1000,43 +1081,92 @@ function renderShop() {
     container.appendChild(card);
   });
 
-  // Life upgrade card (buy 1 life at a time, max 5 purchases)
+  // Life upgrade card (no limit)
   const lifeBought = currentPlayer.shopBought.filter(s => s.startsWith('life_')).length;
-  const canBuy = lifeBought < 5 && currentPlayer.maxLives < 10;
   const lifeCard = document.createElement('div');
   lifeCard.className = 'shop-card';
-  if (!canBuy) {
-    lifeCard.innerHTML = `
-      <div class="item-name" style="color:#555">❤ 生命上限提升</div>
-      <div class="item-type">${currentPlayer.maxLives} / 10 条命</div>
-      <span style="color:#888;font-size:7px">已达上限</span>
-      <button class="pixel-btn small" style="border-color:#555;color:#555" disabled>已满</button>
-    `;
-  } else {
-    lifeCard.innerHTML = `
-      <div class="item-name" style="color:#4caf50">❤ 生命 +1</div>
-      <div class="item-type">剩余 ${5 - lifeBought} 次</div>
-      <span class="shop-price">💰 10000G</span>
-      <button class="pixel-btn small" style="border-color:#4caf50;color:#4caf50">购买</button>
-    `;
-    lifeCard.querySelector('button').addEventListener('click', () => {
-      if (currentPlayer.gold < 10000) {
-        const goldEl = document.getElementById('stat-gold');
-        goldEl.classList.remove('gold-flash');
-        void goldEl.offsetWidth;
-        goldEl.classList.add('gold-flash');
-        addBattleLog(`💰 金币不够！还需要 ${10000 - currentPlayer.gold}G`);
-        return;
-      }
-      currentPlayer.gold -= 10000;
-      currentPlayer.maxLives++;
-      currentPlayer.lives++;
-      currentPlayer.shopBought.push('life_' + lifeBought);
-      addBattleLog(`🛒 生命上限 +1！当前 ${currentPlayer.maxLives}/10`);
-      saveAndRefresh();
-    });
-  }
+  lifeCard.innerHTML = `
+    <div class="item-name" style="color:#4caf50">❤ 生命 +1</div>
+    <div class="item-type">已购买 ${lifeBought} 次</div>
+    <span class="shop-price">💰 10000G</span>
+    <button class="pixel-btn small" style="border-color:#4caf50;color:#4caf50">购买</button>
+  `;
+  lifeCard.querySelector('button').addEventListener('click', () => {
+    if (currentPlayer.gold < 10000) {
+      const goldEl = document.getElementById('stat-gold');
+      goldEl.classList.remove('gold-flash');
+      void goldEl.offsetWidth;
+      goldEl.classList.add('gold-flash');
+      addBattleLog(`💰 金币不够！还需要 ${10000 - currentPlayer.gold}G`);
+      return;
+    }
+    currentPlayer.gold -= 10000;
+    currentPlayer.maxLives++;
+    currentPlayer.lives++;
+    currentPlayer.shopBought.push('life_' + lifeBought);
+    addBattleLog(`🛒 生命 +1！当前 ${currentPlayer.maxLives} 条命`);
+    saveAndRefresh();
+  });
   container.appendChild(lifeCard);
+
+  // ========== Stat Training Section ==========
+  const trainingDiv = document.createElement('div');
+  trainingDiv.style.cssText = 'margin-top:16px;border-top:2px solid #333;padding-top:12px';
+  trainingDiv.innerHTML = '<h3 style="color:#4fc3f7">🏋️ 属性训练（永久提升，PvP 可用）</h3>';
+  container.appendChild(trainingDiv);
+
+  ['atk', 'def', 'hp'].forEach(stat => {
+    const count = stat === 'atk' ? (currentPlayer.trainedAtk || 0) :
+                  stat === 'def' ? (currentPlayer.trainedDef || 0) : (currentPlayer.trainedHp || 0);
+    const cost = getTrainingCost(stat, count);
+    const label = getTrainingLabel(stat);
+    const effect = getTrainingEffect(stat);
+    const currentVal = stat === 'hp' ? count : count;
+
+    const card = document.createElement('div');
+    card.className = 'shop-card';
+    card.style.cssText = 'border-color:#4fc3f7;margin-bottom:6px';
+
+    // Cap training at 100 per stat
+    const maxed = count >= 100;
+    if (maxed) {
+      card.innerHTML = `
+        <span style="color:#4fc3f7;font-size:9px;min-width:100px">${label}</span>
+        <span style="color:#888;font-size:7px">${effect}</span>
+        <span style="color:#555;font-size:7px">已达上限（${count}/100）</span>
+        <button class="pixel-btn small" disabled style="border-color:#555;color:#555">已满</button>
+      `;
+    } else {
+      card.innerHTML = `
+        <span style="color:#4fc3f7;font-size:9px;min-width:100px">${label}</span>
+        <span style="color:#aaa;font-size:7px">${effect}</span>
+        <span style="color:#888;font-size:7px;flex:1">当前 +${currentVal}</span>
+        <span class="shop-price" style="font-size:8px">💰 ${cost}G</span>
+        <button class="pixel-btn small" style="border-color:#4fc3f7;color:#4fc3f7">训练</button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        if (currentPlayer.gold < cost) {
+          const goldEl = document.getElementById('stat-gold');
+          goldEl.classList.remove('gold-flash');
+          void goldEl.offsetWidth;
+          goldEl.classList.add('gold-flash');
+          addBattleLog(`💰 金币不够！还需要 ${cost - currentPlayer.gold}G`);
+          return;
+        }
+        currentPlayer.gold -= cost;
+        if (stat === 'atk') currentPlayer.trainedAtk = (currentPlayer.trainedAtk || 0) + 1;
+        else if (stat === 'def') currentPlayer.trainedDef = (currentPlayer.trainedDef || 0) + 1;
+        else if (stat === 'hp') currentPlayer.trainedHp = (currentPlayer.trainedHp || 0) + 5;
+        // Heal to apply new HP instantly
+        if (stat === 'hp') {
+          currentPlayer.hp = currentPlayer.effectiveMaxHp;
+        }
+        addBattleLog(`🏋️ 完成 ${label}！${effect}（当前 +${stat === 'hp' ? (currentPlayer.trainedHp || 0) : (stat === 'atk' ? currentPlayer.trainedAtk : currentPlayer.trainedDef)}）`);
+        saveAndRefresh();
+      });
+    }
+    container.appendChild(card);
+  });
 }
 
 // ========= Tabs =========
@@ -1323,7 +1453,7 @@ function openPvPOverlay(opponentData, isMyTurn) {
 
   const pSprite = document.getElementById('battle-p-sprite');
   const eSprite = document.getElementById('battle-e-sprite');
-  pSprite.src = 'sprites/hero.png';
+  pSprite.src = `sprites/${(currentPlayer.sprite || 'hero')}.png`;
   pSprite.onerror = () => { pSprite.style.display = 'none'; };
   eSprite.src = 'sprites/hero.png';
   eSprite.onerror = () => { eSprite.style.display = 'none'; };

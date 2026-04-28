@@ -189,11 +189,31 @@ function createRedEquipment(monsterLevel, type) {
   return item;
 }
 
+// ========== Stat Training Costs ==========
+const TRAINING_BASE = { atk: 800, def: 600, hp: 400 };
+const TRAINING_INC = { atk: 400, def: 300, hp: 200 };
+
+function getTrainingCost(stat, count) {
+  const base = TRAINING_BASE[stat] || 600;
+  const inc = TRAINING_INC[stat] || 200;
+  return base + count * inc;
+}
+
+function getTrainingLabel(stat) {
+  const labels = { atk: '攻击训练', def: '防御训练', hp: '体能训练' };
+  return labels[stat] || stat;
+}
+
+function getTrainingEffect(stat) {
+  const effects = { atk: '⚔ ATK +1', def: '🛡 DEF +1', hp: '❤ HP +5' };
+  return effects[stat] || '';
+}
+
 /** Get gold price for an equipment item */
 function getEquipmentPrice(item) {
   if (item.rarity === '红装') {
-    const prices = { weapon: 9000, armor: 6000, accessory: 4500, helmet: 6000, boots: 4500 };
-    return prices[item.type] || 6000;
+    const prices = { weapon: 20000, armor: 15000, accessory: 12000, helmet: 15000, boots: 12000 };
+    return prices[item.type] || 15000;
   }
   // Other rarities not sold
   return 0;

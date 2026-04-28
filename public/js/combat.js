@@ -46,15 +46,31 @@ class PvECombat {
     // Decrement cooldowns
     this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
     this.player.comboCd = Math.max(0, this.player.comboCd - 1);
+    this.player.burstCd = Math.max(0, this.player.burstCd - 1);
 
-    let crit = isCritical(this.player.level);
+    // === Class passives ===
+    // 精灵射手: 精准射击 — +10%暴击率, 暴伤2.5倍
+    const critRate = this.player.level * 0.01 + (this.player.passivePrecision ? 0.10 : 0);
+    const critMult = this.player.passivePrecision ? 2.5 : CRIT_MULTIPLIER;
+    let crit = Math.random() < Math.min(1, critRate);
     const lucky = isLuckyCrit(this.player.luck);
     let damage = calcDamage(this.player.atk, this.monster.def);
+
     if (lucky) {
       damage = Math.floor(damage * LUCK_MULTIPLIER);
       crit = true;
     } else if (crit) {
-      damage = Math.floor(damage * CRIT_MULTIPLIER);
+      damage = Math.floor(damage * critMult);
+    }
+
+    // 魔女魔力爆发: 每4回合一次3倍
+    const burstBonus = (this.player.passiveBurst && this.player.burstCd === 0) ? 3.0 : 1.0;
+    let burstText = '';
+    if (burstBonus > 1.0) {
+      damage = Math.floor(damage * burstBonus);
+      this.player.burstCd = this.player.burstCdMax;
+      soundManaBurst();
+      burstText = '🔮 魔力爆发！';
     }
 
     this.monster.hp -= damage;
@@ -63,7 +79,7 @@ class PvECombat {
     if (crit) this.stats.playerCrits++;
     this.lastHit = { damage, critical: crit, lucky, isPlayer: true };
     const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
-    this.onLog(`${critText}造成伤害${damage}`);
+    this.onLog(`${burstText}${critText}造成伤害${damage}`);
 
     // Lifesteal
     let lifestealHeal = 0;
@@ -182,20 +198,35 @@ class PvPCombat {
     // Decrement cooldowns
     this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
     this.player.comboCd = Math.max(0, this.player.comboCd - 1);
+    this.player.burstCd = Math.max(0, this.player.burstCd - 1);
 
-    let crit = isCritical(this.player.level);
+    // Class passives
+    const critRate = this.player.level * 0.01 + (this.player.passivePrecision ? 0.10 : 0);
+    const critMult = this.player.passivePrecision ? 2.5 : CRIT_MULTIPLIER;
+    let crit = Math.random() < Math.min(1, critRate);
     const lucky = isLuckyCrit(this.player.luck);
     let damage = calcDamage(this.player.atk, this.opponent.def);
+
     if (lucky) {
       damage = Math.floor(damage * LUCK_MULTIPLIER);
       crit = true;
     } else if (crit) {
-      damage = Math.floor(damage * CRIT_MULTIPLIER);
+      damage = Math.floor(damage * critMult);
+    }
+
+    // 魔女魔力爆发
+    const burstBonus = (this.player.passiveBurst && this.player.burstCd === 0) ? 3.0 : 1.0;
+    let burstText = '';
+    if (burstBonus > 1.0) {
+      damage = Math.floor(damage * burstBonus);
+      this.player.burstCd = this.player.burstCdMax;
+      soundManaBurst();
+      burstText = '🔮 魔力爆发！';
     }
 
     this.opponent.hp -= damage;
     const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
-    this.onLog(`${critText}造成伤害${damage}`);
+    this.onLog(`${burstText}${critText}造成伤害${damage}`);
 
     // Lifesteal
     if (this.player.passiveLifesteal && this.player.lifestealCd === 0 && damage > 0) {

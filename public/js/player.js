@@ -1,11 +1,32 @@
 class Player {
-  constructor(name) {
+  static CLASSES = {
+    '战士': {
+      atkBonus: 0, defBonus: 0, hpBonus: 0, sprite: 'hero',
+      lifesteal: true, combo: true, precision: false, burst: false,
+      label: '均衡型', desc: '吸血+连击'
+    },
+    '精灵射手': {
+      atkBonus: 1, defBonus: -1, hpBonus: 0, sprite: 'elf-archer',
+      lifesteal: false, combo: false, precision: true, burst: false,
+      label: '暴击型', desc: '精准：暴击+10%，暴伤2.5倍'
+    },
+    '魔女': {
+      atkBonus: 2, defBonus: -2, hpBonus: -10, sprite: 'sorceress',
+      lifesteal: false, combo: false, precision: false, burst: true,
+      label: '爆发型', desc: '魔力爆发：每4回合一次3倍伤害'
+    },
+  };
+
+  constructor(name, classType = '战士') {
+    const cls = Player.CLASSES[classType] || Player.CLASSES['战士'];
+    this.classType = classType;
+    this.sprite = cls.sprite;
     this.name = name;
     this.level = 1;
-    this.hp = 80;
-    this.maxHp = 80;
-    this.baseAtk = 6;
-    this.baseDef = 3;
+    this.hp = 80 + cls.hpBonus;
+    this.maxHp = 80 + cls.hpBonus;
+    this.baseAtk = 6 + cls.atkBonus;
+    this.baseDef = 3 + cls.defBonus;
     this.exp = 0;
     this.gold = 0;
     this.weapon = null;
@@ -15,20 +36,27 @@ class Player {
     this.boots = null;
     this.inventory = [];
     this.zonesUnlocked = 1;
-    this.defeatedMonsters = []; // Track monster names defeated for zone progression
+    this.defeatedMonsters = [];
     this.lootedCounts = { '普通': 0, '优秀': 0, '稀有': 0, '史诗': 0, '传说': 0 };
     this.shopBought = [];
     this.lives = 5;
-    this.maxLives = 5; // base, can be increased to 10 via shop
+    this.maxLives = 5;
     this.pvpWins = 0;
     this.pvpLosses = 0;
-    this.passiveLifesteal = true;
-    this.passiveCombo = true;
+    this.passiveLifesteal = cls.lifesteal;
+    this.passiveCombo = cls.combo;
+    this.passivePrecision = cls.precision;
+    this.passiveBurst = cls.burst;
     this.lifestealCd = 0;
     this.comboCd = 0;
     this.lifestealCdMax = 3;
     this.comboCdMax = 4;
+    this.burstCd = 0;
+    this.burstCdMax = 4;
     this.luck = 1;
+    this.trainedAtk = 0;
+    this.trainedDef = 0;
+    this.trainedHp = 0;
   }
 
   get maxExp() {
@@ -42,7 +70,7 @@ class Player {
     if (this.accessory) bonus += this.accessory.atk || 0;
     if (this.helmet && this.helmet.atk) bonus += this.helmet.atk;
     if (this.boots && this.boots.atk) bonus += this.boots.atk;
-    return this.baseAtk + bonus;
+    return this.baseAtk + bonus + (this.trainedAtk || 0);
   }
 
   get def() {
@@ -52,7 +80,7 @@ class Player {
     if (this.accessory) bonus += this.accessory.def || 0;
     if (this.helmet) bonus += this.helmet.def;
     if (this.boots) bonus += this.boots.def;
-    return this.baseDef + bonus;
+    return this.baseDef + bonus + (this.trainedDef || 0);
   }
 
   get hpBonus() {
@@ -62,7 +90,7 @@ class Player {
     if (this.accessory && this.accessory.hp) bonus += this.accessory.hp;
     if (this.helmet && this.helmet.hp) bonus += this.helmet.hp;
     if (this.boots && this.boots.hp) bonus += this.boots.hp;
-    return bonus;
+    return bonus + (this.trainedHp || 0);
   }
 
   get effectiveMaxHp() {
@@ -139,6 +167,7 @@ class Player {
   serialize() {
     return {
       name: this.name,
+      classType: this.classType,
       level: this.level,
       hp: this.hp,
       maxHp: this.maxHp,
@@ -167,12 +196,17 @@ class Player {
       lifestealCdMax: this.lifestealCdMax,
       comboCdMax: this.comboCdMax,
       luck: this.luck,
+      burstCd: this.burstCd,
+      burstCdMax: this.burstCdMax,
+      trainedAtk: this.trainedAtk,
+      trainedDef: this.trainedDef,
+      trainedHp: this.trainedHp,
     };
   }
 
   /** Deserialize from save */
   static deserialize(data) {
-    const p = new Player(data.name);
+    const p = new Player(data.name, data.classType || '战士');
     p.level = data.level;
     p.hp = data.hp;
     p.maxHp = data.maxHp;
@@ -201,6 +235,11 @@ class Player {
     p.lifestealCdMax = data.lifestealCdMax || 3;
     p.comboCdMax = data.comboCdMax || 4;
     p.luck = data.luck !== undefined ? data.luck : 1;
+    p.burstCd = data.burstCd || 0;
+    p.burstCdMax = data.burstCdMax || 4;
+    p.trainedAtk = data.trainedAtk || 0;
+    p.trainedDef = data.trainedDef || 0;
+    p.trainedHp = data.trainedHp || 0;
     return p;
   }
 }
