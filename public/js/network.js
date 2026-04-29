@@ -4,6 +4,7 @@ class Network {
     this.connected = false;
     this.player = null;
     this.pendingChallenge = null;
+    this.reconnectAttempts = 0;
   }
 
   init(player) {
@@ -20,6 +21,7 @@ class Network {
 
       this.ws.onopen = () => {
         this.connected = true;
+        this.reconnectAttempts = 0;
         this.login(this.player);
       };
 
@@ -34,8 +36,10 @@ class Network {
 
       this.ws.onclose = () => {
         this.connected = false;
-        // Auto reconnect after 3s
-        setTimeout(() => this.connect(), 3000);
+        // Exponential backoff: 3s, 6s, 12s, 24s... max 30s
+        const delay = Math.min(3000 * Math.pow(2, this.reconnectAttempts), 30000);
+        this.reconnectAttempts++;
+        setTimeout(() => this.connect(), delay);
       };
 
       this.ws.onerror = () => {

@@ -652,7 +652,7 @@ body::before {
 
 #battle-p-name { color: #4fc3f7; }
 #battle-p-cd { margin-top: 6px; font-size: 8px; text-align: center; line-height: 1.4; }
-#battle-e-cd { margin-top: 6px; height: 22px; }
+
 #battle-e-name { color: #ef5350; }
 
 #battle-vs {

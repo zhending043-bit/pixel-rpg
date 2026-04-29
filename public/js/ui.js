@@ -79,25 +79,11 @@ function initUI(player, onSave) {
 
   // Player avatar → stats modal
   document.getElementById('player-avatar').addEventListener('click', showStatsModal);
-  document.getElementById('stats-modal-close').addEventListener('click', () => {
-    document.getElementById('stats-modal').classList.add('hidden');
-  });
-  document.getElementById('stats-modal').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
-      document.getElementById('stats-modal').classList.add('hidden');
-    }
-  });
+  setupModalClose('stats-modal', 'stats-modal-close');
 
   // Help button
   document.getElementById('help-btn').addEventListener('click', showHelpModal);
-  document.getElementById('help-modal-close').addEventListener('click', () => {
-    document.getElementById('help-modal').classList.add('hidden');
-  });
-  document.getElementById('help-modal').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
-      document.getElementById('help-modal').classList.add('hidden');
-    }
-  });
+  setupModalClose('help-modal', 'help-modal-close');
 
   network = new Network();
   network.init(currentPlayer);
@@ -146,7 +132,8 @@ function startGame() {
   }
 
   // 1) Try localStorage
-  const saved = localStorage.getItem('pixel_rpg_save');
+  let saved;
+  try { saved = localStorage.getItem('pixel_rpg_save'); } catch (e) { saved = null; }
   if (saved) {
     try {
       const data = JSON.parse(saved);
@@ -163,7 +150,7 @@ function startGame() {
     .then(result => {
       if (result.ok && result.exists && result.data && result.data.name === name) {
         // Server save found — use it and persist to local too
-        localStorage.setItem('pixel_rpg_save', JSON.stringify(result.data));
+        try { localStorage.setItem('pixel_rpg_save', JSON.stringify(result.data)); } catch (e) { /* storage full */ }
         enterGame(result.data);
       } else {
         enterGame(null); // fresh start
@@ -186,6 +173,25 @@ function saveGame() {
 function saveAndRefresh() {
   saveGame();
   refreshAll();
+}
+
+// ========= Helper Functions =========
+function hideModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function setupModalClose(modalId, closeBtnId) {
+  document.getElementById(closeBtnId).addEventListener('click', () => hideModal(modalId));
+  document.getElementById(modalId).addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) hideModal(modalId);
+  });
+}
+
+function flashGoldInsufficient() {
+  const goldEl = document.getElementById('stat-gold');
+  goldEl.classList.remove('gold-flash');
+  void goldEl.offsetWidth;
+  goldEl.classList.add('gold-flash');
 }
 
 // ========= Refresh All =========
@@ -534,6 +540,10 @@ function startPvECombat(monsterData) {
 
   currentCombat = new PvECombat(currentPlayer, monsterData, addBattleLog, onPvEEnd, selectedZoneIdx);
   openBattleOverlay(monsterData.name);
+  // Trim old battle logs to prevent memory leak
+  if (battleLogEntries.length > 200) {
+    battleLogEntries = battleLogEntries.slice(-100);
+  }
   updateBattleUI();
   runAutoCombat();
 }
@@ -1063,10 +1073,7 @@ function renderShop() {
       `;
       card.querySelector('button').addEventListener('click', () => {
         if (currentPlayer.gold < price) {
-          const goldEl = document.getElementById('stat-gold');
-          goldEl.classList.remove('gold-flash');
-          void goldEl.offsetWidth;
-          goldEl.classList.add('gold-flash');
+          flashGoldInsufficient();
           addBattleLog(`💰 金币不够！还需要 ${price - currentPlayer.gold}G`);
           return;
         }
@@ -1093,10 +1100,7 @@ function renderShop() {
   `;
   lifeCard.querySelector('button').addEventListener('click', () => {
     if (currentPlayer.gold < 10000) {
-      const goldEl = document.getElementById('stat-gold');
-      goldEl.classList.remove('gold-flash');
-      void goldEl.offsetWidth;
-      goldEl.classList.add('gold-flash');
+      flashGoldInsufficient();
       addBattleLog(`💰 金币不够！还需要 ${10000 - currentPlayer.gold}G`);
       return;
     }
@@ -1146,10 +1150,7 @@ function renderShop() {
       `;
       card.querySelector('button').addEventListener('click', () => {
         if (currentPlayer.gold < cost) {
-          const goldEl = document.getElementById('stat-gold');
-          goldEl.classList.remove('gold-flash');
-          void goldEl.offsetWidth;
-          goldEl.classList.add('gold-flash');
+          flashGoldInsufficient();
           addBattleLog(`💰 金币不够！还需要 ${cost - currentPlayer.gold}G`);
           return;
         }
@@ -1188,8 +1189,8 @@ function checkBotAchievement() {
   if (botAchievementShown) return;
   if (areAllBotsDead()) {
     botAchievementShown = true;
-    addBattleLog('🏆 成就解锁：【口人魔】—— 你杀光了所有人机！');
-    addPvPLog('🏆 成就解锁：【口人魔】—— 你杀光了所有人机！');
+    addBattleLog('🏆 成就解锁：【杀人魔】—— 你杀光了所有人机！');
+    addPvPLog('🏆 成就解锁：【杀人魔】—— 你杀光了所有人机！');
   }
 }
 
@@ -1218,6 +1219,10 @@ function startBotCombat(bot) {
 
   currentCombat = new PvECombat(currentPlayer, monsterData, addBattleLog, onBotEnd, -1);
   openBattleOverlay(bot.fullName);
+  // Trim old battle logs
+  if (battleLogEntries.length > 200) {
+    battleLogEntries = battleLogEntries.slice(-100);
+  }
   updateBattleUI();
   runAutoCombat();
 }

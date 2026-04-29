@@ -13,7 +13,64 @@ function isCritical(level) {
 }
 
 function isLuckyCrit(luck) {
-  return Math.random() < 0.001; // 0.1%
+  return Math.random() < (luck || 1) * 0.001;
+}
+
+/**
+ * Shared player attack calculation used by both PvE and PvP combat.
+ * Handles: cooldown decrement, crit/lucky, burst, lifesteal, combo.
+ * Does NOT handle death/victory/loot — caller's responsibility.
+ */
+function calcPlayerAttack(player, targetDef, onLog) {
+  // Decrement cooldowns
+  player.lifestealCd = Math.max(0, player.lifestealCd - 1);
+  player.comboCd = Math.max(0, player.comboCd - 1);
+  player.burstCd = Math.max(0, player.burstCd - 1);
+
+  // Class passives
+  const critRate = player.level * 0.01 + (player.passivePrecision ? 0.10 : 0);
+  const critMult = player.passivePrecision ? 2.5 : CRIT_MULTIPLIER;
+  let crit = Math.random() < Math.min(1, critRate);
+  const lucky = isLuckyCrit(player.luck);
+  let damage = calcDamage(player.atk, targetDef);
+
+  if (lucky) {
+    damage = Math.floor(damage * LUCK_MULTIPLIER);
+    crit = true;
+  } else if (crit) {
+    damage = Math.floor(damage * critMult);
+  }
+
+  // 魔女魔力爆发
+  const burstBonus = (player.passiveBurst && player.burstCd === 0) ? 3.0 : 1.0;
+  let burstText = '';
+  if (burstBonus > 1.0) {
+    damage = Math.floor(damage * burstBonus);
+    player.burstCd = player.burstCdMax;
+    soundManaBurst();
+    burstText = '🔮 魔力爆发！';
+  }
+
+  const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
+  onLog(`${burstText}${critText}造成伤害${damage}`);
+
+  // Lifesteal
+  let lifestealHeal = 0;
+  if (player.passiveLifesteal && player.lifestealCd === 0 && damage > 0) {
+    lifestealHeal = Math.max(1, Math.floor(damage * 0.15));
+    player.hp = Math.min(player.effectiveMaxHp, player.hp + lifestealHeal);
+    player.lifestealCd = player.lifestealCdMax;
+    onLog(`🩸 吸血恢复了 ${lifestealHeal} 点生命`);
+  }
+
+  // Combo (base damage — caller can override with custom calc)
+  let comboDamage = 0;
+  if (player.passiveCombo && player.comboCd === 0) {
+    comboDamage = Math.floor(damage * 0.6);
+    player.comboCd = player.comboCdMax;
+  }
+
+  return { damage, critical: crit, lucky, lifesteal: lifestealHeal > 0, comboDamage };
 }
 
 class PvECombat {
@@ -43,65 +100,23 @@ class PvECombat {
   playerAttack() {
     if (this.finished) return;
 
-    // Decrement cooldowns
-    this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
-    this.player.comboCd = Math.max(0, this.player.comboCd - 1);
-    this.player.burstCd = Math.max(0, this.player.burstCd - 1);
-
-    // === Class passives ===
-    // 精灵射手: 精准射击 — +10%暴击率, 暴伤2.5倍
-    const critRate = this.player.level * 0.01 + (this.player.passivePrecision ? 0.10 : 0);
-    const critMult = this.player.passivePrecision ? 2.5 : CRIT_MULTIPLIER;
-    let crit = Math.random() < Math.min(1, critRate);
-    const lucky = isLuckyCrit(this.player.luck);
-    let damage = calcDamage(this.player.atk, this.monster.def);
-
-    if (lucky) {
-      damage = Math.floor(damage * LUCK_MULTIPLIER);
-      crit = true;
-    } else if (crit) {
-      damage = Math.floor(damage * critMult);
-    }
-
-    // 魔女魔力爆发: 每4回合一次3倍
-    const burstBonus = (this.player.passiveBurst && this.player.burstCd === 0) ? 3.0 : 1.0;
-    let burstText = '';
-    if (burstBonus > 1.0) {
-      damage = Math.floor(damage * burstBonus);
-      this.player.burstCd = this.player.burstCdMax;
-      soundManaBurst();
-      burstText = '🔮 魔力爆发！';
-    }
+    const result = calcPlayerAttack(this.player, this.monster.def, this.onLog);
+    const { damage, critical: crit, lucky, lifesteal, comboDamage } = result;
 
     this.monster.hp -= damage;
     this.stats.round++;
     this.stats.playerTotalDmg += damage;
     if (crit) this.stats.playerCrits++;
-    this.lastHit = { damage, critical: crit, lucky, isPlayer: true };
-    const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
-    this.onLog(`${burstText}${critText}造成伤害${damage}`);
+    this.lastHit = { damage, critical: crit, lucky, isPlayer: true, lifesteal, combo: comboDamage > 0 };
 
-    // Lifesteal
-    let lifestealHeal = 0;
-    if (this.player.passiveLifesteal && this.player.lifestealCd === 0 && damage > 0) {
-      lifestealHeal = Math.max(1, Math.floor(damage * 0.15));
-      this.player.hp = Math.min(this.player.effectiveMaxHp, this.player.hp + lifestealHeal);
-      this.player.lifestealCd = this.player.lifestealCdMax;
-      this.onLog(`🩸 吸血恢复了 ${lifestealHeal} 点生命`);
+    // Combo on monster
+    if (comboDamage > 0) {
+      if (this.monster.hp > 0) {
+        this.monster.hp -= comboDamage;
+        this.stats.playerTotalDmg += comboDamage;
+        this.onLog(`💫 连击！额外造成了 ${comboDamage} 点伤害`);
+      }
     }
-    this.lastHit.lifesteal = lifestealHeal > 0;
-
-    // Combo — second hit at 60% damage
-    let comboDamage = 0;
-    if (this.player.passiveCombo && this.player.comboCd === 0 && this.monster.hp > 0) {
-      comboDamage = Math.floor(damage * 0.6);
-      this.monster.hp -= comboDamage;
-      this.stats.playerTotalDmg += comboDamage;
-      this.player.comboCd = this.player.comboCdMax;
-      this.onLog(`💫 连击！额外造成了 ${comboDamage} 点伤害`);
-    }
-
-    this.lastHit.combo = comboDamage > 0;
 
     if (this.monster.hp <= 0) {
       this.monster.hp = 0;
@@ -195,56 +210,18 @@ class PvPCombat {
   myAttack() {
     if (this.finished || !this.myTurn) return null;
 
-    // Decrement cooldowns
-    this.player.lifestealCd = Math.max(0, this.player.lifestealCd - 1);
-    this.player.comboCd = Math.max(0, this.player.comboCd - 1);
-    this.player.burstCd = Math.max(0, this.player.burstCd - 1);
-
-    // Class passives
-    const critRate = this.player.level * 0.01 + (this.player.passivePrecision ? 0.10 : 0);
-    const critMult = this.player.passivePrecision ? 2.5 : CRIT_MULTIPLIER;
-    let crit = Math.random() < Math.min(1, critRate);
-    const lucky = isLuckyCrit(this.player.luck);
-    let damage = calcDamage(this.player.atk, this.opponent.def);
-
-    if (lucky) {
-      damage = Math.floor(damage * LUCK_MULTIPLIER);
-      crit = true;
-    } else if (crit) {
-      damage = Math.floor(damage * critMult);
-    }
-
-    // 魔女魔力爆发
-    const burstBonus = (this.player.passiveBurst && this.player.burstCd === 0) ? 3.0 : 1.0;
-    let burstText = '';
-    if (burstBonus > 1.0) {
-      damage = Math.floor(damage * burstBonus);
-      this.player.burstCd = this.player.burstCdMax;
-      soundManaBurst();
-      burstText = '🔮 魔力爆发！';
-    }
+    const result = calcPlayerAttack(this.player, this.opponent.def, this.onLog);
+    let { damage, critical: crit, lucky, comboDamage } = result;
 
     this.opponent.hp -= damage;
-    const critText = lucky ? '🍀 幸运暴击! ' : (crit ? '💥 暴击! ' : '');
-    this.onLog(`${burstText}${critText}造成伤害${damage}`);
 
-    // Lifesteal
-    if (this.player.passiveLifesteal && this.player.lifestealCd === 0 && damage > 0) {
-      const heal = Math.max(1, Math.floor(damage * 0.15));
-      this.player.hp = Math.min(this.player.effectiveMaxHp, this.player.hp + heal);
-      this.player.lifestealCd = this.player.lifestealCdMax;
-      this.onLog(`🩸 吸血恢复了 ${heal} 点生命`);
-    }
-
-    // Combo
-    let comboDamage = 0;
+    // PvP combo is special: recalculates with target def and can crit
     let comboCritical = false;
-    if (this.player.passiveCombo && this.player.comboCd === 0 && this.opponent.hp > 0) {
+    if (comboDamage > 0 && this.opponent.hp > 0) {
       comboDamage = calcDamage(Math.floor(this.player.atk * 0.6), this.opponent.def);
       comboCritical = isCritical(this.player.level);
       if (comboCritical) comboDamage = Math.floor(comboDamage * CRIT_MULTIPLIER);
       this.opponent.hp -= comboDamage;
-      this.player.comboCd = this.player.comboCdMax;
       const comboCritText = comboCritical ? '💥' : '';
       this.onLog(`💫 连击！${comboCritText}额外造成了 ${comboDamage} 点伤害`);
     }
