@@ -99,6 +99,63 @@ app.get('/api/load', async (req, res) => {
   }
 });
 
+// ========== Leaderboard API ==========
+app.post('/api/leaderboard', async (req, res) => {
+  const { name, wins, losses, level } = req.body;
+  if (!name) return res.json({ ok: false });
+
+  if (dbReady) {
+    try {
+      await db.collection('leaderboard').updateOne(
+        { name },
+        { $set: { name, wins: wins || 0, losses: losses || 0, level: level || 1, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      res.json({ ok: false });
+    }
+  } else {
+    const DATA_DIR = path.join(__dirname, 'data');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+    const lbPath = path.join(DATA_DIR, 'leaderboard.json');
+    let lb = [];
+    try { lb = JSON.parse(fs.readFileSync(lbPath, 'utf8')); } catch (e) { /* new file */ }
+    const idx = lb.findIndex(e => e.name === name);
+    const entry = { name, wins: wins || 0, losses: losses || 0, level: level || 1 };
+    if (idx >= 0) lb[idx] = entry;
+    else lb.push(entry);
+    try { fs.writeFileSync(lbPath, JSON.stringify(lb)); } catch (e) { /* write fail */ }
+    res.json({ ok: true });
+  }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  if (dbReady) {
+    try {
+      const docs = await db.collection('leaderboard')
+        .find({})
+        .sort({ wins: -1, level: -1 })
+        .limit(10)
+        .toArray();
+      const list = docs.map(d => ({ name: d.name, wins: d.wins, losses: d.losses, level: d.level }));
+      res.json({ ok: true, list });
+    } catch (e) {
+      res.json({ ok: false, list: [] });
+    }
+  } else {
+    const DATA_DIR = path.join(__dirname, 'data');
+    const lbPath = path.join(DATA_DIR, 'leaderboard.json');
+    try {
+      const lb = JSON.parse(fs.readFileSync(lbPath, 'utf8'));
+      lb.sort((a, b) => (b.wins || 0) - (a.wins || 0) || (b.level || 0) - (a.level || 0));
+      res.json({ ok: true, list: lb.slice(0, 10) });
+    } catch (e) {
+      res.json({ ok: true, list: [] });
+    }
+  }
+});
+
 // Online players: { ws -> { name, playerData } }
 const onlinePlayers = new Map();
 // Active PvP battles: { ws -> opponentWs }

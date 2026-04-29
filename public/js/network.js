@@ -204,6 +204,7 @@ class Network {
           const resultDiv = document.getElementById('battle-result');
           resultDiv.classList.remove('hidden');
           document.getElementById('battle-result-text').textContent = '🏆 对手断线，你获胜了！';
+          updateLeaderboard();
           saveGame();
           refreshAll();
         }
@@ -260,6 +261,7 @@ class Network {
             }
           }
         }
+        updateLeaderboard();
         saveGame();
         refreshAll();
         break;

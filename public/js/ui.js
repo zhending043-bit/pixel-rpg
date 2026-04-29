@@ -1187,6 +1187,7 @@ function switchTab(tab) {
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.getElementById('zone-selector').style.display = tab === 'combat' ? '' : 'none';
+  if (tab === 'pvp') renderLeaderboard();
 }
 
 let botAchievementShown = false;
@@ -1376,6 +1377,55 @@ function renderOnlinePlayers(players) {
   if (container.children.length === 0) {
     container.innerHTML = '<div class="empty-hint">没有其他玩家或人机</div>';
   }
+}
+
+// ========= Leaderboard =========
+let cachedLeaderboard = [];
+
+function updateLeaderboard() {
+  if (!currentPlayer) return;
+  fetch('/api/leaderboard', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: currentPlayer.name,
+      wins: currentPlayer.pvpWins || 0,
+      losses: currentPlayer.pvpLosses || 0,
+      level: currentPlayer.level,
+    }),
+  }).catch(() => {});
+}
+
+async function renderLeaderboard() {
+  const container = document.getElementById('leaderboard-list');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    if (data.ok) cachedLeaderboard = data.list || [];
+    else cachedLeaderboard = [];
+  } catch {
+    cachedLeaderboard = [];
+  }
+  container.innerHTML = '';
+  if (cachedLeaderboard.length === 0) {
+    container.innerHTML = '<div class="empty-hint">暂无排行数据</div>';
+    return;
+  }
+  cachedLeaderboard.forEach((entry, idx) => {
+    const rank = idx + 1;
+    const card = document.createElement('div');
+    card.className = `lb-card ${rank <= 3 ? 'lb-top' : ''}`;
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+    const masked = maskName(entry.name);
+    card.innerHTML = `
+      <span class="lb-rank">${medal}</span>
+      <span class="lb-name">${masked}</span>
+      <span class="lb-stats">🏆${entry.wins}胜 / 💀${entry.losses || 0}负</span>
+      <span class="lb-level">Lv.${entry.level}</span>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function addPvPLog(msg) {
@@ -1627,6 +1677,7 @@ function finishPvP() {
     network.sendPvPBattleEnd();
   }
   currentPvpCombat = null;
+  updateLeaderboard();
   saveGame();
   refreshAll();
 }

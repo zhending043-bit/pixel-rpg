@@ -586,6 +586,55 @@ body::before {
   margin-bottom: 10px;
 }
 
+/* ========== Leaderboard ========== */
+#leaderboard-section {
+  margin-top: 12px;
+  border-top: 2px solid #333;
+  padding-top: 8px;
+}
+#leaderboard-section h3 {
+  color: #ffd54f;
+  font-size: 8px;
+  margin-bottom: 8px;
+}
+#leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lb-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  font-size: 7px;
+}
+.lb-card.lb-top {
+  border-color: #ffd54f;
+  background: #1a1a20;
+}
+.lb-rank {
+  min-width: 24px;
+  font-size: 9px;
+  text-align: center;
+}
+.lb-name {
+  flex: 1;
+  color: #c8c8d0;
+}
+.lb-stats {
+  color: #aaa;
+  min-width: 80px;
+  text-align: right;
+}
+.lb-level {
+  color: #4fc3f7;
+  min-width: 30px;
+  text-align: right;
+}
+
 .player-card {
   background: #1e1e32;
   border: 2px solid #444;
