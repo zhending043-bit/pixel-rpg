@@ -110,6 +110,27 @@ body::before {
   box-shadow: inset 2px 2px 0 #333, 0 0 12px rgba(255,152,0,0.3);
 }
 
+#player-password-input {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  background: #111;
+  border: 3px solid #555;
+  color: #c8c8d0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  text-align: center;
+  box-shadow: inset 2px 2px 0 #333;
+}
+
+#player-password-input:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: inset 2px 2px 0 #333, 0 0 12px rgba(255,152,0,0.3);
+}
+
 #login-error {
   margin-top: 12px;
   color: #ef5350;

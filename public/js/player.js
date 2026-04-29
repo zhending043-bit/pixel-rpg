@@ -17,11 +17,12 @@ class Player {
     },
   };
 
-  constructor(name, classType = '战士') {
+  constructor(name, classType = '战士', password = '') {
     const cls = Player.CLASSES[classType] || Player.CLASSES['战士'];
     this.classType = classType;
     this.sprite = cls.sprite;
     this.name = name;
+    this.password = password;
     this.level = 1;
     this.hp = 80 + cls.hpBonus;
     this.maxHp = 80 + cls.hpBonus;
@@ -167,6 +168,7 @@ class Player {
   serialize() {
     return {
       name: this.name,
+      password: this.password,
       classType: this.classType,
       level: this.level,
       hp: this.hp,
@@ -206,7 +208,7 @@ class Player {
 
   /** Deserialize from save */
   static deserialize(data) {
-    const p = new Player(data.name, data.classType || '战士');
+    const p = new Player(data.name, data.classType || '战士', data.password || '');
     p.level = data.level;
     p.hp = data.hp;
     p.maxHp = data.maxHp;

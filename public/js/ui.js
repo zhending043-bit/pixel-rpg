@@ -23,6 +23,9 @@ function initUI(player, onSave) {
   document.getElementById('player-name-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startGame();
   });
+  document.getElementById('player-password-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') startGame();
+  });
 
   // Class selection
   document.querySelectorAll('.class-option').forEach(el => {
@@ -94,6 +97,9 @@ function startGame() {
   const name = nameInput.value.trim();
   if (!name) return;
 
+  const passwordInput = document.getElementById('player-password-input');
+  const password = passwordInput.value.trim();
+
   // Get selected class
   const selectedClass = document.querySelector('.class-option.selected');
   const classType = selectedClass ? selectedClass.dataset.class : '战士';
@@ -108,15 +114,28 @@ function startGame() {
   if (network && network.connected && lastNetworkPlayers.some(p => p.name === name)) {
     errEl.textContent = `⚠ "${name}" 已存在，请换一个名字`;
     errEl.classList.remove('hidden');
+    startBtn.disabled = false;
     return;
   }
 
-  // Check for save: try local first, then server
+  function checkPassword(savedPassword) {
+    // No password set on save → allow any password (backwards compat)
+    if (!savedPassword) return true;
+    return savedPassword === password;
+  }
+
   function enterGame(data) {
     if (data) {
+      // Verify password for existing save
+      if (!checkPassword(data.password)) {
+        errEl.textContent = '⚠ 密码错误';
+        errEl.classList.remove('hidden');
+        startBtn.disabled = false;
+        return;
+      }
       currentPlayer = Player.deserialize(data);
     } else {
-      currentPlayer = new Player(name, classType);
+      currentPlayer = new Player(name, classType, password);
     }
     errEl.classList.add('hidden');
     document.getElementById('login-screen').classList.add('hidden');
@@ -149,6 +168,13 @@ function startGame() {
     .then(r => r.json())
     .then(result => {
       if (result.ok && result.exists && result.data && result.data.name === name) {
+        // Verify password for server save
+        if (!checkPassword(result.data.password)) {
+          errEl.textContent = '⚠ 密码错误';
+          errEl.classList.remove('hidden');
+          startBtn.disabled = false;
+          return;
+        }
         // Server save found — use it and persist to local too
         try { localStorage.setItem('pixel_rpg_save', JSON.stringify(result.data)); } catch (e) { /* storage full */ }
         enterGame(result.data);
