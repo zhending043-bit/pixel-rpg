@@ -1187,7 +1187,10 @@ function switchTab(tab) {
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.getElementById('zone-selector').style.display = tab === 'combat' ? '' : 'none';
-  if (tab === 'pvp') renderLeaderboard();
+  if (tab === 'pvp') {
+    reRenderPvPList();
+    renderLeaderboard();
+  }
 }
 
 let botAchievementShown = false;
