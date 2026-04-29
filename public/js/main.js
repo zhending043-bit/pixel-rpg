@@ -22,7 +22,6 @@ let autosaveTimer = null;
 function startAutosave() {
   stopAutosave();
   autosaveTimer = setInterval(() => {
-    // currentPlayer is declared in ui.js (same global scope)
     if (typeof currentPlayer !== 'undefined' && currentPlayer) {
       saveGame(currentPlayer);
     }
@@ -39,7 +38,9 @@ function stopAutosave() {
 window.addEventListener('beforeunload', () => {
   if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(currentPlayer.serialize()));
+      const data = currentPlayer.serialize();
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      navigator.sendBeacon('/api/save', new Blob([JSON.stringify({ name: currentPlayer.name, data })], { type: 'application/json' }));
     } catch (e) { /* ignore */ }
   }
 });
@@ -47,7 +48,8 @@ window.addEventListener('beforeunload', () => {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   // Pre-fill name from save
-  const saved = localStorage.getItem(SAVE_KEY);
+  let saved;
+  try { saved = localStorage.getItem(SAVE_KEY); } catch (e) { saved = null; }
   if (saved) {
     try {
       const data = JSON.parse(saved);

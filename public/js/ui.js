@@ -1000,10 +1000,9 @@ function renderInventory() {
   });
 }
 
+const SELL_PRICE_MULT = { '普通': 1, '优秀': 3, '稀有': 8, '史诗': 20, '传说': 50, '红装': 80 };
 function calcSellPrice(item) {
-  const rarityMultipliers = { '普通': 1, '优秀': 3, '稀有': 8, '史诗': 20, '传说': 50, '红装': 80 };
-  const mult = rarityMultipliers[item.rarity] || 1;
-  return Math.max(1, Math.floor((5 + item.level * 2) * mult));
+  return Math.max(1, Math.floor((5 + item.level * 2) * (SELL_PRICE_MULT[item.rarity] || 1)));
 }
 
 function recycleItem(item) {
@@ -1038,18 +1037,29 @@ function renderEquipped() {
 }
 
 // ========= Shop =========
+let cachedShopItems = null;
+function getShopItems() {
+  if (cachedShopItems) return cachedShopItems;
+  cachedShopItems = {};
+  ['weapon', 'armor', 'accessory', 'helmet', 'boots'].forEach(type => {
+    cachedShopItems[type] = createRedEquipment(30, type);
+  });
+  return cachedShopItems;
+}
+
 function renderShop() {
   const container = document.getElementById('shop-list');
   container.innerHTML = '';
 
   const types = ['weapon', 'armor', 'accessory', 'helmet', 'boots'];
   const typeNames = { weapon: '武器', armor: '防具', accessory: '饰品', helmet: '头盔', boots: '靴子' };
+  const shopItems = getShopItems();
 
   // Init shop tracking
   if (!currentPlayer.shopBought) currentPlayer.shopBought = [];
 
   types.forEach(type => {
-    const item = createRedEquipment(30, type);
+    const item = shopItems[type];
     const price = getEquipmentPrice(item);
     const bought = currentPlayer.shopBought.includes(type);
 
