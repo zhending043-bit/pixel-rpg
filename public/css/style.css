@@ -703,29 +703,68 @@ body::before {
 }
 
 #battle-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 16px;
-  gap: 10px;
 }
 
-#battle-player-info, #battle-enemy-info {
+#battle-sprite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#battle-sprite-row .battle-side-info {
   flex: 1;
   text-align: center;
 }
 
+#battle-name-row {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0;
+}
+#battle-name-row > div {
+  flex: 1;
+  text-align: center;
+}
+#battle-name-row > div:empty {
+  flex: 0 0 10px;
+}
+
+#battle-hp-row {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0;
+}
+#battle-hp-row > div {
+  flex: 1;
+}
+#battle-hp-row > div:empty {
+  flex: 0 0 10px;
+}
+
+#battle-cd-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+#battle-cd-row > div {
+  flex: 1;
+}
+#battle-cd-row > div:empty {
+  flex: 0 0 10px;
+}
+
 #battle-p-name, #battle-e-name {
   font-size: 10px;
-  margin-bottom: 6px;
 }
 
 #battle-p-name { color: #4fc3f7; }
-#battle-p-cd { margin-top: 6px; font-size: 8px; text-align: center; line-height: 1.4; }
-
 #battle-e-name { color: #ef5350; }
 
+#battle-p-cd { font-size: 8px; text-align: center; line-height: 1.4; }
+#battle-e-cd { font-size: 8px; text-align: center; line-height: 1.4; }
+
 #battle-vs {
+  flex-shrink: 0;
   font-size: 16px;
   color: #ff9800;
   text-shadow: 2px 2px 0 #8d6e00;
