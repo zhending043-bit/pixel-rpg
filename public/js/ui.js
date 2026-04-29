@@ -1312,6 +1312,12 @@ function showMercyKillChoice() {
 }
 
 // ========= PvP UI =========
+function maskName(name) {
+  if (!name || name.length <= 1) return name;
+  const first = name[0];
+  return first + '*'.repeat(name.length - 1);
+}
+
 function renderOnlinePlayers(players) {
   const container = document.getElementById('player-list');
   container.innerHTML = '';
@@ -1323,7 +1329,7 @@ function renderOnlinePlayers(players) {
       const card = document.createElement('div');
       card.className = 'player-card';
       card.innerHTML = `
-        <span>${p.name} <span class="monster-info">Lv.${p.level}</span></span>
+        <span>${maskName(p.name)} <span class="monster-info">Lv.${p.level}</span></span>
         <button class="pixel-btn small challenge-btn">⚔ 挑战</button>
       `;
       card.querySelector('.challenge-btn').addEventListener('click', () => {
@@ -1381,7 +1387,7 @@ function showPvPChallenge(from) {
   const acceptBtn = document.getElementById('challenge-accept-btn');
   const declineBtn = document.getElementById('challenge-decline-btn');
 
-  msgEl.textContent = `${from}\n向你发起了 PvP 挑战！`;
+  msgEl.textContent = `${maskName(from)}\n向你发起了 PvP 挑战！`;
   countEl.textContent = '10';
   countEl.classList.remove('urgent');
   overlay.classList.remove('hidden');
@@ -1414,7 +1420,7 @@ function showPvPChallenge(from) {
     }
     if (remaining <= 0) {
       cleanup();
-      addPvPLog(`⏰ 挑战超时，已自动拒绝 ${from} 的挑战`);
+      addPvPLog(`⏰ 挑战超时，已自动拒绝 ${maskName(from)} 的挑战`);
     }
   }, 1000);
 }
@@ -1437,7 +1443,7 @@ function openPvPOverlay(opponentData, isMyTurn) {
 
   const overlay = document.getElementById('battle-overlay');
   overlay.classList.remove('hidden');
-  document.getElementById('battle-e-name').textContent = opponentData.name;
+  document.getElementById('battle-e-name').textContent = maskName(opponentData.name);
   document.getElementById('battle-result').classList.add('hidden');
   document.getElementById('reward-overlay').classList.add('hidden');
   document.getElementById('battle-actions').classList.remove('hidden');
@@ -1459,8 +1465,8 @@ function openPvPOverlay(opponentData, isMyTurn) {
   eSprite.onerror = () => { eSprite.style.display = 'none'; };
 
   updatePvPBattleUI();
-  addBattleLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
-  addPvPLog(`⚔ PvP 对战开始！对手: ${opponentData.name} Lv.${opponentData.level}`);
+  addBattleLog(`⚔ PvP 对战开始！对手: ${maskName(opponentData.name)} Lv.${opponentData.level}`);
+  addPvPLog(`⚔ PvP 对战开始！对手: ${maskName(opponentData.name)} Lv.${opponentData.level}`);
   if (isMyTurn) {
     addBattleLog('⏳ 自动攻击中...');
     addPvPLog('⏳ 自动攻击中...');
@@ -1478,7 +1484,7 @@ function updatePvPBattleUI() {
   document.getElementById('battle-p-hp').style.width = `${Math.max(0, pHpPct)}%`;
 
   document.getElementById('battle-e-name').textContent =
-    `${currentPvpCombat.opponent.name} Lv.${currentPvpCombat.opponent.level}`;
+    `${maskName(currentPvpCombat.opponent.name)} Lv.${currentPvpCombat.opponent.level}`;
   const eHpPct = currentPvpCombat.opponent.hp / currentPvpCombat.opponent.maxHp * 100;
   document.getElementById('battle-e-hp').style.width = `${Math.max(0, eHpPct)}%`;
   updateBattleSkillCd();
@@ -1558,7 +1564,7 @@ function pvpBattleAttack() {
       document.getElementById('pvp-mercy-btn').onclick = () => {
         currentPlayer.gold += halfGold;
         network.sendPvPResult(opp.name, currentPlayer.name, 'mercy', halfGold);
-        addBattleLog(`💰 放过了 ${opp.name}，获得了 ${halfGold} 金币`);
+        addBattleLog(`💰 放过了 ${maskName(opp.name)}，获得了 ${halfGold} 金币`);
         finishPvP();
       };
 
@@ -1571,7 +1577,7 @@ function pvpBattleAttack() {
         });
         (opp.inventory || []).forEach(item => { currentPlayer.inventory.push(item); itemCount++; });
         network.sendPvPResult(opp.name, currentPlayer.name, 'kill', goldGained);
-        addBattleLog(`💀 干掉了 ${opp.name}，抢了 ${goldGained}G 和 ${itemCount} 件装备！`);
+        addBattleLog(`💀 干掉了 ${maskName(opp.name)}，抢了 ${goldGained}G 和 ${itemCount} 件装备！`);
         finishPvP();
       };
 

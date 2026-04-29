@@ -135,11 +135,11 @@ class Network {
         break;
 
       case 'challenge_sent':
-        addPvPLog(`📨 挑战已发送给 ${msg.target}`);
+        addPvPLog(`📨 挑战已发送给 ${maskName(msg.target)}`);
         break;
 
       case 'challenge_declined':
-        addPvPLog(`❌ ${msg.from} 拒绝了你的挑战`);
+        addPvPLog(`❌ ${maskName(msg.from)} 拒绝了你的挑战`);
         break;
 
       case 'battle_start': {
@@ -191,8 +191,8 @@ class Network {
       }
 
       case 'pvp_opponent_disconnected':
-        addPvPLog(`⚠ ${msg.from} 断开了连接，PvP 战斗结束`);
-        addBattleLog(`⚠ ${msg.from} 断开了连接，你获胜了！`);
+        addPvPLog(`⚠ ${maskName(msg.from)} 断开了连接，PvP 战斗结束`);
+        addBattleLog(`⚠ ${maskName(msg.from)} 断开了连接，你获胜了！`);
         if (currentPvpCombat) {
           currentPvpCombat.finished = true;
           currentPlayer.pvpWins++;
@@ -206,13 +206,13 @@ class Network {
         break;
 
       case 'pvp_result': {
-        addBattleLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
-        addPvPLog(`🏆 PvP 结束！胜者: ${msg.winner}`);
+        addBattleLog(`🏆 PvP 结束！胜者: ${maskName(msg.winner)}`);
+        addPvPLog(`🏆 PvP 结束！胜者: ${maskName(msg.winner)}`);
         // Apply loot loss to defeated player
         if (msg.lootType === 'flee') {
           currentPlayer.pvpWins++;
-          addBattleLog(`🏃 ${msg.winner} 逃跑了！你获得了胜利！`);
-          addPvPLog(`🏃 ${msg.winner} 逃跑了！你获得了胜利！`);
+          addBattleLog(`🏃 ${maskName(msg.winner)} 逃跑了！你获得了胜利！`);
+          addPvPLog(`🏃 ${maskName(msg.winner)} 逃跑了！你获得了胜利！`);
           document.getElementById('battle-overlay').classList.add('hidden');
           saveGame();
           refreshAll();
@@ -220,7 +220,7 @@ class Network {
         } else if (msg.lootType === 'mercy') {
           const lostGold = Math.floor((currentPlayer.gold || 0) / 2);
           currentPlayer.gold -= lostGold;
-          addBattleLog(`💰 ${msg.winner} 放过了你，你失去了 ${lostGold} 金币`);
+          addBattleLog(`💰 ${maskName(msg.winner)} 放过了你，你失去了 ${lostGold} 金币`);
         } else if (msg.lootType === 'kill') {
           const itemCount = (currentPlayer.inventory || []).length +
             (currentPlayer.weapon ? 1 : 0) + (currentPlayer.armor ? 1 : 0) +
@@ -237,10 +237,10 @@ class Network {
           soundKill();
           if (currentPlayer.lives > 0) {
             currentPlayer.hp = currentPlayer.effectiveMaxHp;
-            addBattleLog(`💀 ${msg.winner} 杀了你，损失全部身家！剩余 ${currentPlayer.lives}/3 条命`);
+            addBattleLog(`💀 ${maskName(msg.winner)} 杀了你，损失全部身家！剩余 ${currentPlayer.lives}/3 条命`);
           } else {
             currentPlayer.hp = 0;
-            addBattleLog(`💀 ${msg.winner} 杀了你，游戏结束！你已经没有命了...`);
+            addBattleLog(`💀 ${maskName(msg.winner)} 杀了你，游戏结束！你已经没有命了...`);
           }
         }
         // Update defeat text if battle overlay is still showing
@@ -251,8 +251,8 @@ class Network {
             if (child.id === 'battle-close-btn' || child.id === 'pvp-mercy-kill-div') continue;
             if (child.tagName === 'P' || child.id === 'battle-result-text') {
               child.textContent = msg.lootType === 'kill'
-                ? `💀 被 ${msg.winner} 击杀！损失全部身家${livesLeft > 0 ? `，剩余 ${livesLeft}/3 条命` : '，游戏结束！'}`
-                : `😅 ${msg.winner} 放过了你，损失了一半金币`;
+                ? `💀 被 ${maskName(msg.winner)} 击杀！损失全部身家${livesLeft > 0 ? `，剩余 ${livesLeft}/3 条命` : '，游戏结束！'}`
+                : `😅 ${maskName(msg.winner)} 放过了你，损失了一半金币`;
             }
           }
         }
